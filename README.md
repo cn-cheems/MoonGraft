@@ -64,6 +64,11 @@ candidate/
 
 ## 已实现的规则
 
+回退候选：`rollback-export resolved.json candidate/project rollback-candidate` 将完整旧项目和
+旧模板基线写入新目录；库接口是 `Plan::rollback(candidate)`。候选必须与计划的升级输出
+完全一致，新增文件、内容或属性修改都导致拒绝，防止覆盖升级后的新工作。
+此操作不会自动替换工作目录。`scripts/demo.mbtx` 同时演示预览、门禁和可验证回退。
+
 升级门禁：`gate resolved.json 0 0 1048576` 要求实际输出不删除文件、不改变二进制文件，
 内容净增长最多 1 MiB。库接口为 `Plan::check_policy`；超限聚合返回 `PolicyRejected`，
 CLI 非零退出。门禁覆盖人工替换结果，但不会隐式成为导出前置条件；CI 应显式先运行 gate。

@@ -150,6 +150,36 @@ async fn main {
     "examples/service/template-v2",
     root + "/v3.json",
   ])
+  ignore(command(target, ["preview-json", root + "/resolved.json"]))
+  ignore(
+    command(target, ["gate", root + "/resolved.json", "1", "0", "1048576"]),
+  )
+  ignore(
+    command(
+      target,
+      ["gate", root + "/resolved.json", "0", "0", "0"],
+      success=false,
+    ),
+  )
+  ignore(
+    command(target, [
+      "rollback-export",
+      root + "/resolved.json",
+      project,
+      root + "/rollback",
+    ]),
+  )
+  ignore(command(target, ["verify-export", root + "/rollback"]))
+  guard @fs.read_file(root + "/rollback/project/README.md").binary() ==
+    @fs.read_file(source + "/README.md").binary() &&
+    @fs.exists(root + "/rollback/project/legacy.txt") &&
+    !@fs.exists(root + "/rollback/project/release-policy.txt") else {
+    fail("Rollback did not restore the original project")
+  }
+  guard @fs.read_file(root + "/rollback/baseline.json").binary() ==
+    @fs.read_file(root + "/baseline.json").binary() else {
+    fail("Rollback baseline differs")
+  }
   guard next_report.contains("Unresolved: 0") else {
     fail("Second upgrade lost its baseline")
   }

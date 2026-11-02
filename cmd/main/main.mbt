@@ -16,6 +16,7 @@ let usage : String =
   #|export <resolved-plan.json> <project-dir> <new-bundle-dir>
   #|resume <bundle-dir>
   #|verify-export <bundle-dir>
+  #|rollback-export <resolved-plan.json> <candidate-project-dir> <new-bundle-dir>
   #|
   #|Archives are created exclusively. Root .git metadata is explicitly excluded.
   #|Source project files are never overwritten. See README.md for supported inputs.
@@ -135,6 +136,13 @@ async fn run(args : Array[String]) -> Unit {
     ["verify-export", destination] => {
       @workspace.verify_export(destination)
       println("Candidate verified without writing: " + destination)
+    }
+    ["rollback-export", input, candidate, destination] => {
+      let plan = @graft.Plan::decode(@workspace.read_text(input))
+      @workspace.require_outside(destination, candidate)
+      let restored = plan.rollback(@workspace.scan(candidate))
+      @workspace.export_result(restored, destination)
+      println("Verified rollback candidate: " + destination + "/project")
     }
     _ => raise @workspace.WorkspaceError("Invalid arguments.\n" + usage)
   }

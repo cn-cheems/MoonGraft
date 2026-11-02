@@ -135,6 +135,7 @@ pub fn Plan::report_json(Self) -> String
 pub fn Plan::resolve(Self, Array[Decision]) -> Self raise GraftError
 pub fn Plan::resolve_review(Self, String) -> Self raise GraftError
 pub fn Plan::review_template(Self) -> String
+pub fn Plan::rollback(Self, Tree) -> Applied raise GraftError
 pub fn Plan::to_repr(Self) -> @debug.Repr
 pub fn Plan::unresolved(Self) -> Array[String]
 pub fn Plan::validate(Self, Tree) -> Unit raise GraftError
