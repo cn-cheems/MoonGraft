@@ -6,4 +6,5 @@ import {
 
 import {
   "cn-cheems/moongraft" @graft,
+  "moonbitlang/core/json",
 } for "test"

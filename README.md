@@ -64,6 +64,11 @@ candidate/
 
 ## 已实现的规则
 
+批量审阅：`review-template plan.json review.json` 创建绑定当前计划的空审阅文件。
+在外层 payload 的第二项数组中填写决策，例如 `["README.md", ["keep-local"]]`。
+执行 `apply-review plan.json review.json resolved.json` 原子应用整批决策。
+保留第一项中的完整计划字符串；计划或已有决策发生变化后，旧审阅文件会被拒绝。
+
 - 模板未改时保留项目内容；项目未改时采用模板内容；双方相同修改自动收敛。
 - 项目独有文件保留；上游新增同名文件时报告冲突。
 - UTF-8 文本按保留行结束符的行序列进行保守三方合并；重叠修改需要决策。

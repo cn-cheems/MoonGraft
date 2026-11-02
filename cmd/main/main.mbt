@@ -5,6 +5,8 @@ let usage : String =
   #|track <template-id> <revision> <rendered-template-dir> <new-baseline.json>
   #|plan <baseline.json> <project-dir> <new-revision> <new-template-dir> <new-plan.json>
   #|review <plan.json>
+  #|review-template <plan.json> <new-review.json>
+  #|apply-review <plan.json> <review.json> <new-plan.json>
   #|show <plan.json> <conflict-path>
   #|resolve <plan.json> <conflict-path> <keep-local|take-template|delete> <new-plan.json>
   #|replace <plan.json> <conflict-path> <replacement-file> <new-plan.json>
@@ -59,6 +61,16 @@ async fn run(args : Array[String]) -> Unit {
     }
     ["review", input] =>
       println(@graft.Plan::decode(@workspace.read_text(input)).report())
+    ["review-template", input, output] => {
+      let plan = @graft.Plan::decode(@workspace.read_text(input))
+      @workspace.write_new(output, plan.review_template())
+    }
+    ["apply-review", input, review, output] => {
+      let plan = @graft.Plan::decode(@workspace.read_text(input))
+      let resolved = plan.resolve_review(@workspace.read_text(review))
+      @workspace.write_new(output, resolved.encode())
+      println(resolved.report())
+    }
     ["show", input, path] => {
       let detail = @graft.Plan::decode(@workspace.read_text(input)).conflict_detail(
         path,
