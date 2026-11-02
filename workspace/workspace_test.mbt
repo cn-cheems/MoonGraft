@@ -1,4 +1,35 @@
 ///|
+async test "read-only export verification refuses missing and unknown data without repair" {
+  let root = fixture()
+  defer @fs.rmdir(root, recursive=true)
+  let tree = @workspace.scan(root + "/source")
+  let base = @graft.track("team", "v1", tree)
+  @workspace.export_result(
+    @graft.plan_update(base, tree, base).apply(tree),
+    root + "/candidate",
+  )
+  @workspace.verify_export(root + "/candidate")
+  @fs.remove(root + "/candidate/project/a.txt")
+  try @workspace.verify_export(root + "/candidate") catch {
+    _ => ()
+  } noraise {
+    _ => fail("missing file accepted")
+  }
+  assert_false(@fs.exists(root + "/candidate/project/a.txt"))
+  @workspace.resume_export(root + "/candidate")
+  @fs.write_file(root + "/candidate/unexpected.txt", "human data")
+  try @workspace.verify_export(root + "/candidate") catch {
+    _ => ()
+  } noraise {
+    _ => fail("unknown data accepted")
+  }
+  assert_eq(
+    @workspace.read_text(root + "/candidate/unexpected.txt"),
+    "human data",
+  )
+}
+
+///|
 async fn fixture() -> String {
   let root = @fs.tmpdir(prefix="moongraft-test-")
   @fs.mkdir(root + "/source")

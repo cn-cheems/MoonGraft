@@ -20,6 +20,8 @@ pub async fn resume_export(String) -> Unit
 
 pub async fn scan(String) -> @moongraft.Tree
 
+pub async fn verify_export(String) -> Unit
+
 pub async fn write_new(String, String) -> Unit
 
 // Errors

@@ -13,6 +13,7 @@ let usage : String =
   #|replace <plan.json> <conflict-path> <replacement-file> <new-plan.json>
   #|export <resolved-plan.json> <project-dir> <new-bundle-dir>
   #|resume <bundle-dir>
+  #|verify-export <bundle-dir>
   #|
   #|Archives are created exclusively. Root .git metadata is explicitly excluded.
   #|Source project files are never overwritten. See README.md for supported inputs.
@@ -117,6 +118,10 @@ async fn run(args : Array[String]) -> Unit {
     ["resume", destination] => {
       @workspace.resume_export(destination)
       println("Verified candidate: " + destination + "/project")
+    }
+    ["verify-export", destination] => {
+      @workspace.verify_export(destination)
+      println("Candidate verified without writing: " + destination)
     }
     _ => raise @workspace.WorkspaceError("Invalid arguments.\n" + usage)
   }

@@ -1,4 +1,34 @@
 ///|
+/// Read-only verification. Requires a completed bundle and exact contents;
+/// missing files, unknown metadata and pending work fail without repair.
+pub async fn verify_export(destination : String) -> Unit {
+  require_directory(destination)
+  let names = @fs.readdir(destination, include_hidden=true)
+  guard names.length() == 4 &&
+    names.all(name => {
+      ["intent.json", "project", "baseline.json", "complete.json"].contains(
+        name,
+      )
+    }) else {
+    raise WorkspaceError(
+      "Expected a complete export bundle without pending or unknown entries",
+    )
+  }
+  let (tree, baseline) = load_intent(destination)
+  verify_partial(destination + "/project", "", tree)
+  guard scan(destination + "/project") == tree else {
+    raise WorkspaceError(
+      "Candidate is incomplete; verification never repairs files",
+    )
+  }
+  guard read_text(destination + "/baseline.json") == baseline.encode() &&
+    read_text(destination + "/complete.json") ==
+    "[\"moongraft.complete\",\"1\"]\n" else {
+    raise WorkspaceError("Completion marker or baseline differs from intent")
+  }
+}
+
+///|
 fn export_intent(applied : @graft.Applied) -> String {
   Json::array([
     Json::string("moongraft.export.1"),

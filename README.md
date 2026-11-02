@@ -64,6 +64,10 @@ candidate/
 
 ## 已实现的规则
 
+只读验收：`verify-export candidate`（库接口 `workspace.verify_export`）校验完成标记、
+基线、目录结构和全部文件字节，不创建、删除或修复任何文件。适合 CI 检查已审阅候选包；
+缺失文件或陌生数据均失败，需要恢复时再显式运行 `resume`。
+
 CI 集成可调用 `report-json plan.json` 或 `Plan::report_json()`。
 输出固定结构 `["moongraft.report","1",模板标识,旧版本,新版本,变更行,未解决路径]`；
 每行包含路径、分类和决策（未决策为 null），按路径排序，适合解析归档。
