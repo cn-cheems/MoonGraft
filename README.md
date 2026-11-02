@@ -64,6 +64,10 @@ candidate/
 
 ## 已实现的规则
 
+升级门禁：`gate resolved.json 0 0 1048576` 要求实际输出不删除文件、不改变二进制文件，
+内容净增长最多 1 MiB。库接口为 `Plan::check_policy`；超限聚合返回 `PolicyRejected`，
+CLI 非零退出。门禁覆盖人工替换结果，但不会隐式成为导出前置条件；CI 应显式先运行 gate。
+
 结果预览：`preview-json resolved.json` / `Plan::output_changes()` 列出相对当前项目的
 实际新增、删除、内容或可执行属性变化。它与合并来源报告不同：选择保留本地的冲突不会
 被误计为文件修改。预览要求全部冲突已解决，输出按路径排序，不包含文件内容。

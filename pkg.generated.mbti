@@ -19,6 +19,7 @@ pub(all) suberror GraftError {
   InvalidDecision(String, String)
   Unresolved(Array[String])
   StaleProject
+  PolicyRejected(Array[String])
   StructuralCollision(String, String)
 } derive(@debug.Debug)
 pub fn GraftError::message(Self) -> String
@@ -118,6 +119,7 @@ pub struct Plan {
 } derive(Eq, @debug.Debug)
 pub fn Plan::apply(Self, Tree) -> Applied raise GraftError
 pub fn Plan::changes(Self) -> Array[Change]
+pub fn Plan::check_policy(Self, max_removed~ : Int32, max_binary_changes~ : Int32, max_growth_bytes~ : Int32) -> Unit raise GraftError
 pub fn Plan::conflict_detail(Self, String) -> ConflictDetail raise GraftError
 pub fn Plan::conflicts(Self) -> Array[Change]
 pub fn Plan::decisions(Self) -> Array[Decision]

@@ -7,6 +7,7 @@ let usage : String =
   #|review <plan.json>
   #|report-json <plan.json>
   #|preview-json <resolved-plan.json>
+  #|gate <resolved-plan.json> <max-removed> <max-binary-changes> <max-net-growth-bytes>
   #|review-template <plan.json> <new-review.json>
   #|apply-review <plan.json> <review.json> <new-plan.json>
   #|show <plan.json> <conflict-path>
@@ -68,6 +69,15 @@ async fn run(args : Array[String]) -> Unit {
       println(@graft.Plan::decode(@workspace.read_text(input)).report_json())
     ["preview-json", input] =>
       println(@graft.Plan::decode(@workspace.read_text(input)).output_json())
+    ["gate", input, removed, binary, growth] => {
+      let plan = @graft.Plan::decode(@workspace.read_text(input))
+      plan.check_policy(
+        max_removed=@string.parse_int(removed),
+        max_binary_changes=@string.parse_int(binary),
+        max_growth_bytes=@string.parse_int(growth),
+      )
+      println("Upgrade policy passed")
+    }
     ["review-template", input, output] => {
       let plan = @graft.Plan::decode(@workspace.read_text(input))
       @workspace.write_new(output, plan.review_template())

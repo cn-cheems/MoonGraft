@@ -8,6 +8,7 @@ pub(all) suberror GraftError {
   InvalidDecision(String, String)
   Unresolved(Array[String])
   StaleProject
+  PolicyRejected(Array[String])
   StructuralCollision(String, String)
 } derive(Debug)
 
@@ -23,6 +24,7 @@ pub fn GraftError::message(self : GraftError) -> String {
       "Resolve these conflicts before applying: " + paths.join(", ")
     StaleProject =>
       "The project changed after planning; generate and review a new plan."
+    PolicyRejected(reasons) => "Upgrade policy rejected: " + reasons.join("; ")
     StructuralCollision(a, b) =>
       "Paths '\{a}' and '\{b}' cannot coexist; revise the template or conflict decisions."
   }
