@@ -118,6 +118,7 @@ pub fn Plan::equal(Self, Self) -> Bool
 pub fn Plan::next_baseline(Self) -> Baseline
 pub fn Plan::not_equal(Self, Self) -> Bool
 pub fn Plan::report(Self) -> String
+pub fn Plan::report_json(Self) -> String
 pub fn Plan::resolve(Self, Array[Decision]) -> Self raise GraftError
 pub fn Plan::resolve_review(Self, String) -> Self raise GraftError
 pub fn Plan::review_template(Self) -> String

@@ -5,6 +5,7 @@ let usage : String =
   #|track <template-id> <revision> <rendered-template-dir> <new-baseline.json>
   #|plan <baseline.json> <project-dir> <new-revision> <new-template-dir> <new-plan.json>
   #|review <plan.json>
+  #|report-json <plan.json>
   #|review-template <plan.json> <new-review.json>
   #|apply-review <plan.json> <review.json> <new-plan.json>
   #|show <plan.json> <conflict-path>
@@ -61,6 +62,8 @@ async fn run(args : Array[String]) -> Unit {
     }
     ["review", input] =>
       println(@graft.Plan::decode(@workspace.read_text(input)).report())
+    ["report-json", input] =>
+      println(@graft.Plan::decode(@workspace.read_text(input)).report_json())
     ["review-template", input, output] => {
       let plan = @graft.Plan::decode(@workspace.read_text(input))
       @workspace.write_new(output, plan.review_template())

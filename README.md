@@ -64,6 +64,10 @@ candidate/
 
 ## 已实现的规则
 
+CI 集成可调用 `report-json plan.json` 或 `Plan::report_json()`。
+输出固定结构 `["moongraft.report","1",模板标识,旧版本,新版本,变更行,未解决路径]`；
+每行包含路径、分类和决策（未决策为 null），按路径排序，适合解析归档。
+
 批量审阅：`review-template plan.json review.json` 创建绑定当前计划的空审阅文件。
 在外层 payload 的第二项数组中填写决策，例如 `["README.md", ["keep-local"]]`。
 执行 `apply-review plan.json review.json resolved.json` 原子应用整批决策。

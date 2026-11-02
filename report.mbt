@@ -1,4 +1,32 @@
 ///|
+/// Deterministic machine-readable review data, including explicit decisions.
+/// Replacement decisions include their bytes; handle reports like plan archives.
+pub fn Plan::report_json(self : Plan) -> String {
+  let rows = self.changes.map(change => {
+    let decision = self.decisions.filter(d => d.path == change.path)
+    Json::array([
+      Json::string(change.path),
+      Json::string(kind_name(change.kind)),
+      if decision.is_empty() {
+        Json::null()
+      } else {
+        decision_json(decision[0])
+      },
+    ])
+  })
+  Json::array([
+    Json::string("moongraft.report"),
+    Json::string("1"),
+    Json::string(self.baseline.template_id),
+    Json::string(self.baseline.revision),
+    Json::string(self.next.revision),
+    Json::array(rows),
+    Json::array(self.unresolved().map(Json::string)),
+  ]).stringify() +
+  "\n"
+}
+
+///|
 fn kind_name(kind : ChangeKind) -> String {
   match kind {
     Unchanged => "unchanged"
