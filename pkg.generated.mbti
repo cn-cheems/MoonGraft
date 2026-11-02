@@ -132,6 +132,7 @@ pub fn Plan::not_equal(Self, Self) -> Bool
 pub fn Plan::output_changes(Self) -> Array[OutputChange] raise GraftError
 pub fn Plan::output_json(Self) -> String raise GraftError
 pub fn Plan::project_drift(Self, Tree) -> Array[ProjectDrift]
+pub fn Plan::refresh(Self, Tree) -> Refreshed raise GraftError
 pub fn Plan::report(Self) -> String
 pub fn Plan::report_json(Self) -> String
 pub fn Plan::resolve(Self, Array[Decision]) -> Self raise GraftError
@@ -150,6 +151,12 @@ pub(all) enum ProjectDrift {
 pub fn ProjectDrift::equal(Self, Self) -> Bool
 pub fn ProjectDrift::not_equal(Self, Self) -> Bool
 pub fn ProjectDrift::to_repr(Self) -> @debug.Repr
+
+pub struct Refreshed {
+  plan : Plan
+  retained : Array[String]
+  dropped : Array[String]
+}
 
 pub(all) enum Resolution {
   KeepLocal

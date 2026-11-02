@@ -64,6 +64,11 @@ candidate/
 
 ## 已实现的规则
 
+保守刷新：`refresh old-plan.json my-project new-plan.json` / `Plan::refresh(current)`
+吸收新的项目快照；仅当某冲突的基线、本地、模板版本及原因完全相同时保留既有决策。
+发生内容或属性变化、已收敛的冲突都会撤销旧决策，并列出 retained/dropped 路径。
+刷新产生新计划，旧计划不变；旧批量审阅文件不能跨计划复用。
+
 过期定位：`drift-json plan.json my-project` / `Plan::project_drift(current)` 返回新增、
 删除及内容/可执行属性变化的路径，便于理解旧计划为何被拒绝；它不会修改或刷新计划，
 报告不包含文件内容，顺序固定为路径字典序。

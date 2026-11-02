@@ -8,6 +8,7 @@ let usage : String =
   #|report-json <plan.json>
   #|preview-json <resolved-plan.json>
   #|drift-json <plan.json> <project-dir>
+  #|refresh <plan.json> <project-dir> <new-plan.json>
   #|gate <resolved-plan.json> <max-removed> <max-binary-changes> <max-net-growth-bytes>
   #|review-template <plan.json> <new-review.json>
   #|apply-review <plan.json> <review.json> <new-plan.json>
@@ -74,6 +75,14 @@ async fn run(args : Array[String]) -> Unit {
     ["drift-json", input, project] => {
       let plan = @graft.Plan::decode(@workspace.read_text(input))
       println(plan.drift_json(@workspace.scan(project)))
+    }
+    ["refresh", input, project, output] => {
+      let plan = @graft.Plan::decode(@workspace.read_text(input))
+      let refreshed = plan.refresh(@workspace.scan(project))
+      @workspace.write_new(output, refreshed.plan.encode())
+      println("Retained decisions: " + refreshed.retained.join(", "))
+      println("Dropped decisions: " + refreshed.dropped.join(", "))
+      println(refreshed.plan.report())
     }
     ["gate", input, removed, binary, growth] => {
       let plan = @graft.Plan::decode(@workspace.read_text(input))
