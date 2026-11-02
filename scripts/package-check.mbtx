@@ -1,0 +1,67 @@
+----
+import {
+  "moonbitlang/async@0.22.5",
+  "moonbitlang/async@0.22.5/fs",
+  "moonbitlang/async@0.22.5/shell",
+  "moonbitlang/core/env",
+}
+----
+
+///|
+async fn main {
+  let portable = match @env.args()[1:] {
+    [] => false
+    ["--portable-only"] => true
+    _ => fail("Unknown package check option")
+  }
+  let packaged = @shell.Cmd("moon", ["package", "--frozen", "--list"]).output()
+  packaged.check()
+  let listing = (packaged.stdout() + "\n" + packaged.stderr()).replace_all(
+    old="\\",
+    new="/",
+  )
+  for
+    required in [
+      "moon.mod", "moon.pkg", "pkg.generated.mbti", "LICENSE", "README.md", "THIRD_PARTY.md",
+      "planner.mbt", "prepare.mbt", "workspace/export.mbt",
+    ] {
+    guard listing.split("\n").any(line => line.trim() == required) else {
+      fail("Package is missing " + required)
+    }
+  }
+  let archive = @fs.realpath("_build/publish/cn-cheems-moongraft-0.1.0.zip")
+  let root = @fs.tmpdir(prefix="moongraft-package-")
+  @fs.mkdir(root + "/library")
+  @fs.mkdir(root + "/app")
+  let extract = if @env.get_env_var("OS") == Some("Windows_NT") {
+    @shell.Cmd("tar", ["-xf", archive, "-C", root + "/library"])
+  } else {
+    @shell.Cmd("unzip", ["-q", archive, "-d", root + "/library"])
+  }
+  extract.run()
+  for name in ["moon.mod", "moon.pkg", "main.mbt"] {
+    @fs.write_file(
+      root + "/app/" + name,
+      @fs.read_file("examples/consumer/" + name),
+    )
+  }
+  @fs.write_file(root + "/moon.work", "members = [\"library\", \"app\"]\n")
+  let targets = if portable {
+    ["wasm", "wasm-gc", "js"]
+  } else {
+    ["wasm", "wasm-gc", "js", "native"]
+  }
+  for target in targets {
+    let output = @shell.Cmd(
+      "moon",
+      ["run", "--target", target, "--deny-warn", "."],
+      cwd=root + "/app",
+    ).output()
+    output.check()
+    guard output.stdout().trim() == "MoonGraft archive consumer passed" else {
+      fail("Unexpected consumer output on " + target)
+    }
+    println("Archive consumer passed: " + target)
+  }
+  println("No publication attempted. Inspect isolated consumer: " + root)
+}

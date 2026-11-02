@@ -128,7 +128,7 @@ pub async fn scan(root : String) -> @graft.Tree {
 ///|
 /// Prevent export bundles from being created inside the project being upgraded.
 pub async fn require_outside(destination : String, source : String) -> Unit {
-  let normalized = destination.replace(old="\\", new="/")
+  let normalized = destination.replace_all(old="\\", new="/")
   guard !normalized.has_suffix("/") else {
     raise WorkspaceError(
       "Destination must name a new directory without a trailing separator",
@@ -142,8 +142,8 @@ pub async fn require_outside(destination : String, source : String) -> Unit {
   } else {
     parts[:parts.length() - 1].to_owned().join("/")
   }
-  let real_parent = @fs.realpath(parent).replace(old="\\", new="/")
-  let real_source = @fs.realpath(source).replace(old="\\", new="/")
+  let real_parent = @fs.realpath(parent).replace_all(old="\\", new="/")
+  let real_source = @fs.realpath(source).replace_all(old="\\", new="/")
   let target = real_parent + "/" + name
   let a = if windows_host() { target.to_lower() } else { target }
   let b = if windows_host() { real_source.to_lower() } else { real_source }

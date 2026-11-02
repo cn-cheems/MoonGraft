@@ -30,6 +30,24 @@ async test "read-only export verification refuses missing and unknown data witho
 }
 
 ///|
+async test "nested destinations are rejected below multiple directory levels" {
+  let root = fixture()
+  defer @fs.rmdir(root, recursive=true)
+  @fs.mkdir(root + "/source/deep")
+  @fs.mkdir(root + "/source/deep/nested")
+  try
+    @workspace.require_outside(
+      root + "/source/deep/nested/export",
+      root + "/source",
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("deeply nested output accepted")
+  }
+}
+
+///|
 async fn fixture() -> String {
   let root = @fs.tmpdir(prefix="moongraft-test-")
   @fs.mkdir(root + "/source")

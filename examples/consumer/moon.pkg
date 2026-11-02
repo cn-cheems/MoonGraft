@@ -1,0 +1,5 @@
+import {
+  "cn-cheems/moongraft" @graft,
+}
+
+pkgtype(kind: "executable")

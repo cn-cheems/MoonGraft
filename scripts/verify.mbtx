@@ -29,7 +29,10 @@ async fn main {
   }
   run(["version", "--all"])
   run(["fmt", "--check"])
-  run(["fmt", "--check", "scripts/demo.mbtx", "scripts/verify.mbtx"])
+  run([
+    "fmt", "--check", "scripts/demo.mbtx", "scripts/verify.mbtx", "scripts/package-check.mbtx",
+  ])
+  run(["-C", "examples/consumer", "fmt", "--check"])
   let paths = [
     "pkg.generated.mbti", "workspace/pkg.generated.mbti", "cmd/main/pkg.generated.mbti",
   ]
@@ -51,5 +54,10 @@ async fn main {
   if native {
     run(["test", "--target", "native", "--deny-warn"])
     run(["run", "--deny-warn", "scripts/demo.mbtx", "native"])
+  }
+  if native {
+    run(["run", "--deny-warn", "scripts/package-check.mbtx"])
+  } else {
+    run(["run", "--deny-warn", "scripts/package-check.mbtx", "--portable-only"])
   }
 }

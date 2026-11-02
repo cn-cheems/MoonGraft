@@ -122,6 +122,9 @@ CI 集成可调用 `report-json plan.json` 或 `Plan::report_json()`。
 
 公开 API 见 [生成接口](pkg.generated.mbti)、[可运行库示例](README.mbt.md) 和 [设计约定](docs/design.md)。核心包不依赖主机 I/O；`workspace` 包提供文件系统适配，`cmd/main` 提供 CLI。
 
+独立采用验证：`moon run scripts/package-check.mbtx --portable-only` 从本地 ZIP 包创建临时工作区，
+运行[独立消费者](examples/consumer/README.md)。不依赖未发布的 Mooncakes 包，依赖安装仍可能访问公共注册表。
+
 ## 支持范围
 
 | 项目 | 范围 |
