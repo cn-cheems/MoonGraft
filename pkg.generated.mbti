@@ -124,12 +124,14 @@ pub fn Plan::conflict_detail(Self, String) -> ConflictDetail raise GraftError
 pub fn Plan::conflicts(Self) -> Array[Change]
 pub fn Plan::decisions(Self) -> Array[Decision]
 pub fn Plan::decode(String) -> Self raise GraftError
+pub fn Plan::drift_json(Self, Tree) -> String
 pub fn Plan::encode(Self) -> String
 pub fn Plan::equal(Self, Self) -> Bool
 pub fn Plan::next_baseline(Self) -> Baseline
 pub fn Plan::not_equal(Self, Self) -> Bool
 pub fn Plan::output_changes(Self) -> Array[OutputChange] raise GraftError
 pub fn Plan::output_json(Self) -> String raise GraftError
+pub fn Plan::project_drift(Self, Tree) -> Array[ProjectDrift]
 pub fn Plan::report(Self) -> String
 pub fn Plan::report_json(Self) -> String
 pub fn Plan::resolve(Self, Array[Decision]) -> Self raise GraftError
@@ -139,6 +141,15 @@ pub fn Plan::rollback(Self, Tree) -> Applied raise GraftError
 pub fn Plan::to_repr(Self) -> @debug.Repr
 pub fn Plan::unresolved(Self) -> Array[String]
 pub fn Plan::validate(Self, Tree) -> Unit raise GraftError
+
+pub(all) enum ProjectDrift {
+  NewPath(String)
+  MissingPath(String)
+  Changed(String, Bool, Bool)
+} derive(Eq, @debug.Debug)
+pub fn ProjectDrift::equal(Self, Self) -> Bool
+pub fn ProjectDrift::not_equal(Self, Self) -> Bool
+pub fn ProjectDrift::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Resolution {
   KeepLocal

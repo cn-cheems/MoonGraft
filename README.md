@@ -64,6 +64,10 @@ candidate/
 
 ## 已实现的规则
 
+过期定位：`drift-json plan.json my-project` / `Plan::project_drift(current)` 返回新增、
+删除及内容/可执行属性变化的路径，便于理解旧计划为何被拒绝；它不会修改或刷新计划，
+报告不包含文件内容，顺序固定为路径字典序。
+
 回退候选：`rollback-export resolved.json candidate/project rollback-candidate` 将完整旧项目和
 旧模板基线写入新目录；库接口是 `Plan::rollback(candidate)`。候选必须与计划的升级输出
 完全一致，新增文件、内容或属性修改都导致拒绝，防止覆盖升级后的新工作。
