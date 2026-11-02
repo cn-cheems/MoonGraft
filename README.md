@@ -64,6 +64,10 @@ candidate/
 
 ## 已实现的规则
 
+结果预览：`preview-json resolved.json` / `Plan::output_changes()` 列出相对当前项目的
+实际新增、删除、内容或可执行属性变化。它与合并来源报告不同：选择保留本地的冲突不会
+被误计为文件修改。预览要求全部冲突已解决，输出按路径排序，不包含文件内容。
+
 只读验收：`verify-export candidate`（库接口 `workspace.verify_export`）校验完成标记、
 基线、目录结构和全部文件字节，不创建、删除或修复任何文件。适合 CI 检查已审阅候选包；
 缺失文件或陌生数据均失败，需要恢复时再显式运行 `resume`。

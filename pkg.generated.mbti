@@ -104,6 +104,15 @@ pub fn File::not_equal(Self, Self) -> Bool
 pub fn File::text(String, String, executable? : Bool) -> Self raise GraftError
 pub fn File::to_repr(Self) -> @debug.Repr
 
+pub(all) enum OutputChange {
+  Added(String, Int32, Bool)
+  Removed(String, Int32, Bool)
+  Modified(String, Int32, Int32, Bool, Bool, Bool)
+} derive(Eq, @debug.Debug)
+pub fn OutputChange::equal(Self, Self) -> Bool
+pub fn OutputChange::not_equal(Self, Self) -> Bool
+pub fn OutputChange::to_repr(Self) -> @debug.Repr
+
 pub struct Plan {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -117,6 +126,8 @@ pub fn Plan::encode(Self) -> String
 pub fn Plan::equal(Self, Self) -> Bool
 pub fn Plan::next_baseline(Self) -> Baseline
 pub fn Plan::not_equal(Self, Self) -> Bool
+pub fn Plan::output_changes(Self) -> Array[OutputChange] raise GraftError
+pub fn Plan::output_json(Self) -> String raise GraftError
 pub fn Plan::report(Self) -> String
 pub fn Plan::report_json(Self) -> String
 pub fn Plan::resolve(Self, Array[Decision]) -> Self raise GraftError
