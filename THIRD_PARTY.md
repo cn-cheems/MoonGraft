@@ -21,3 +21,7 @@
 
 No generated interfaces are hand-edited. The repository does not contain a
 Python, JavaScript or shell implementation of the upgrade engine.
+
+The archive-consumer verification approach was informed by the Apache-2.0
+[BIDS-Metadata-Trace package workflow](https://github.com/cn-cheems/BIDS-Metadata-Trace).
+MoonGraft's script and consumer are authored here; no BIDS domain logic is used.

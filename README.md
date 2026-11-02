@@ -8,6 +8,9 @@
 
 状态：`0.1.0`，首个本地工作流版本；尚未发布到 Mooncakes。
 
+初版验收入口：[复现与证据说明](docs/acceptance.md)、[变更记录](CHANGELOG.md)、
+[贡献及维护流程](CONTRIBUTING.md)。当前适合评估和试用本地模板升级工作流，支持范围见下文。
+
 ## 快速验证
 
 使用 MoonBit `0.10.17+d971670cd`。项目采用当前工具链识别的 `moon.mod` / `moon.pkg`；命令在仓库根目录执行。
