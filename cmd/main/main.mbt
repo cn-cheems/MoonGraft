@@ -9,6 +9,7 @@ let usage : String =
   #|preview-json <resolved-plan.json>
   #|drift-json <plan.json> <project-dir>
   #|refresh <plan.json> <project-dir> <new-plan.json>
+  #|protect <resolved-plan.json> <protected-paths.json>
   #|gate <resolved-plan.json> <max-removed> <max-binary-changes> <max-net-growth-bytes>
   #|review-template <plan.json> <new-review.json>
   #|apply-review <plan.json> <review.json> <new-plan.json>
@@ -83,6 +84,11 @@ async fn run(args : Array[String]) -> Unit {
       println("Retained decisions: " + refreshed.retained.join(", "))
       println("Dropped decisions: " + refreshed.dropped.join(", "))
       println(refreshed.plan.report())
+    }
+    ["protect", input, rules] => {
+      let plan = @graft.Plan::decode(@workspace.read_text(input))
+      plan.check_protected_json(@workspace.read_text(rules))
+      println("Protected path policy passed")
     }
     ["gate", input, removed, binary, growth] => {
       let plan = @graft.Plan::decode(@workspace.read_text(input))

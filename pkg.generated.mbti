@@ -120,6 +120,8 @@ pub struct Plan {
 pub fn Plan::apply(Self, Tree) -> Applied raise GraftError
 pub fn Plan::changes(Self) -> Array[Change]
 pub fn Plan::check_policy(Self, max_removed~ : Int32, max_binary_changes~ : Int32, max_growth_bytes~ : Int32) -> Unit raise GraftError
+pub fn Plan::check_protected(Self, Array[String]) -> Unit raise GraftError
+pub fn Plan::check_protected_json(Self, String) -> Unit raise GraftError
 pub fn Plan::conflict_detail(Self, String) -> ConflictDetail raise GraftError
 pub fn Plan::conflicts(Self) -> Array[Change]
 pub fn Plan::decisions(Self) -> Array[Decision]

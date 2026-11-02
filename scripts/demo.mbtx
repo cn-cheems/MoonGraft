@@ -150,6 +150,49 @@ async fn main {
     "examples/service/template-v2",
     root + "/v3.json",
   ])
+  ignore(command(target, ["drift-json", root + "/resolved.json", source]))
+  ignore(
+    command(target, [
+      "refresh",
+      root + "/resolved.json",
+      source,
+      root + "/refreshed.json",
+    ]),
+  )
+  guard @fs.read_file(root + "/refreshed.json").binary() ==
+    @fs.read_file(root + "/resolved.json").binary() else {
+    fail("Unchanged refresh altered the reviewed plan")
+  }
+  @fs.write_file(
+    root + "/protected.json",
+    "[\"moongraft.protected\",\"1\",[\"src/\"]]",
+  )
+  ignore(
+    command(target, [
+      "protect",
+      root + "/resolved.json",
+      root + "/protected.json",
+    ]),
+  )
+  @fs.write_file(
+    root + "/blocked-paths.json",
+    "[\"moongraft.protected\",\"1\",[\"legacy.txt\"]]",
+  )
+  ignore(
+    command(
+      target,
+      ["protect", root + "/resolved.json", root + "/blocked-paths.json"],
+      success=false,
+    ),
+  )
+  let repeated_report = command(target, [
+    "plan",
+    root + "/candidate/baseline.json",
+    project,
+    "v3",
+    "examples/service/template-v2",
+    root + "/v3-repeat.json",
+  ])
   ignore(command(target, ["preview-json", root + "/resolved.json"]))
   ignore(
     command(target, ["gate", root + "/resolved.json", "1", "0", "1048576"]),
@@ -182,6 +225,9 @@ async fn main {
   }
   guard next_report.contains("Unresolved: 0") else {
     fail("Second upgrade lost its baseline")
+  }
+  guard repeated_report == next_report else {
+    fail("Repeated planning was not deterministic")
   }
   println(
     "End-to-end checks passed on CLI target " + target + ". Inspect: " + root,

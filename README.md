@@ -64,6 +64,12 @@ candidate/
 
 ## 已实现的规则
 
+路径保护：`protect resolved.json protected.json` 接受严格格式
+`["moongraft.protected","1",["src/","config/production.json"]]`。
+目录规则以 `/` 结尾，文件规则按完整路径匹配；ASCII 大小写不敏感，不解释 glob。
+规则针对实际输出，新增、删除、内容和可执行属性变化均可被阻止，包括目录被同名文件替代。
+库接口为 `Plan::check_protected` / `check_protected_json`；这是显式门禁，导出前须自行调用。
+
 保守刷新：`refresh old-plan.json my-project new-plan.json` / `Plan::refresh(current)`
 吸收新的项目快照；仅当某冲突的基线、本地、模板版本及原因完全相同时保留既有决策。
 发生内容或属性变化、已收敛的冲突都会撤销旧决策，并列出 retained/dropped 路径。
