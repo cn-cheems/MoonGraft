@@ -1,0 +1,1 @@
+Review the candidate diff and run the project's own tests before adoption.

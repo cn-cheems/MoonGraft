@@ -1,0 +1,34 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "cn-cheems/moongraft/workspace"
+
+import {
+  "cn-cheems/moongraft",
+}
+
+// Values
+pub async fn export_result(@moongraft.Applied, String) -> Unit
+
+pub async fn read_bytes(String, limit? : Int32) -> Bytes
+
+pub async fn read_file(String, String) -> @moongraft.File
+
+pub async fn read_text(String) -> String
+
+pub async fn require_outside(String, String) -> Unit
+
+pub async fn resume_export(String) -> Unit
+
+pub async fn scan(String) -> @moongraft.Tree
+
+pub async fn write_new(String, String) -> Unit
+
+// Errors
+pub(all) suberror WorkspaceError {
+  WorkspaceError(String)
+}
+
+// Types and methods
+
+// Type aliases
+
+// Traits

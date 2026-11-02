@@ -1,0 +1,159 @@
+----
+import {
+  "moonbitlang/async@0.22.5",
+  "moonbitlang/async@0.22.5/fs",
+  "moonbitlang/async@0.22.5/shell",
+  "moonbitlang/core/env",
+}
+----
+
+///|
+async fn command(
+  target : String,
+  args : Array[String],
+  success~ : Bool = true,
+) -> String {
+  let output = @shell.Cmd(
+    "moon",
+    ["run", "--target", target, "--deny-warn", "cmd/main", "--"] + args,
+  ).output()
+  guard (output.exit_code() == 0) == success else {
+    fail(
+      "Unexpected command result: " +
+      args.join(" ") +
+      "\n" +
+      output.stdout() +
+      output.stderr(),
+    )
+  }
+  output.stdout() + output.stderr()
+}
+
+///|
+async fn main {
+  let args = @env.args()[1:].to_owned()
+  let target = match args {
+    [] => "wasm"
+    ["native"] => "native"
+    _ => fail("Usage: moon run scripts/demo.mbtx [native]")
+  }
+  let root = @fs.tmpdir(prefix="moongraft-demo-")
+  let source = "examples/service/project"
+  let before = @fs.read_file(
+    source + "/.github/workflows/copilot-setup-steps.yml",
+  ).binary()
+  ignore(
+    command(target, [
+      "track",
+      "example/service",
+      "v1",
+      "examples/service/template-v1",
+      root + "/baseline.json",
+    ]),
+  )
+  let report = command(target, [
+    "plan",
+    root + "/baseline.json",
+    source,
+    "v2",
+    "examples/service/template-v2",
+    root + "/plan.json",
+  ])
+  guard report.contains("merged-text") && report.contains("Unresolved: 1") else {
+    fail("Expected independent CI merge and one README conflict: " + report)
+  }
+  println(report)
+  let refused = command(
+    target,
+    ["export", root + "/plan.json", source, root + "/blocked"],
+    success=false,
+  )
+  guard refused.contains("Resolve these conflicts") &&
+    !@fs.exists(root + "/blocked") else {
+    fail("Unresolved export did not fail closed")
+  }
+  let detail = command(target, ["show", root + "/plan.json", "README.md"])
+  guard detail.contains("company-specific") && detail.contains("revision two") else {
+    fail("Conflict review omitted input versions")
+  }
+  ignore(
+    command(target, [
+      "replace",
+      root + "/plan.json",
+      "README.md",
+      "examples/service/resolved-readme.md",
+      root + "/resolved.json",
+    ]),
+  )
+  println(
+    command(target, [
+      "export",
+      root + "/resolved.json",
+      source,
+      root + "/candidate",
+    ]),
+  )
+  let project = root + "/candidate/project"
+  guard @fs.read_file(project + "/README.md").binary() ==
+    @fs.read_file("examples/service/resolved-readme.md").binary() else {
+    fail("Resolved README differs")
+  }
+  guard @fs.read_file(project + "/src/business.txt").binary() ==
+    @fs.read_file(source + "/src/business.txt").binary() else {
+    fail("Business file changed")
+  }
+  guard !@fs.exists(project + "/legacy.txt") &&
+    @fs.exists(project + "/release-policy.txt") else {
+    fail("Add/delete semantics failed")
+  }
+  let workflow = @fs.read_file(
+    project + "/.github/workflows/copilot-setup-steps.yml",
+  ).text()
+  guard workflow.contains("MOONBIT_INSTALL_VERSION") &&
+    workflow.contains("Team-specific billing checks") else {
+    fail("Merged CI lost one side")
+  }
+  ignore(
+    command(target, [
+      "track",
+      "example/service",
+      "v2",
+      "examples/service/template-v2",
+      root + "/next.json",
+    ]),
+  )
+  guard @fs.read_file(root + "/next.json").binary() ==
+    @fs.read_file(root + "/candidate/baseline.json").binary() else {
+    fail("Next baseline is not the rendered v2 template")
+  }
+  // A separate process resumes a deliberately interrupted export.
+  @fs.remove(root + "/candidate/complete.json")
+  @fs.remove(project + "/release-policy.txt")
+  @fs.write_file(root + "/candidate/pending.json", "\"release-policy.txt\"")
+  @fs.write_file(root + "/candidate/pending.bin", "Review")
+  ignore(command(target, ["resume", root + "/candidate"]))
+  guard @fs.exists(root + "/candidate/complete.json") &&
+    @fs.read_file(project + "/release-policy.txt").binary() ==
+    @fs.read_file("examples/service/template-v2/release-policy.txt").binary() else {
+    fail("New-process recovery failed")
+  }
+  guard @fs.read_file(source + "/.github/workflows/copilot-setup-steps.yml").binary() ==
+    before else {
+    fail("Source project was modified")
+  }
+  // The v2 baseline can immediately drive a subsequent no-template-change update.
+  let next_report = command(target, [
+    "plan",
+    root + "/candidate/baseline.json",
+    project,
+    "v3",
+    "examples/service/template-v2",
+    root + "/v3.json",
+  ])
+  guard next_report.contains("Unresolved: 0") else {
+    fail("Second upgrade lost its baseline")
+  }
+  println(
+    "End-to-end checks passed on CLI target " + target + ". Inspect: " + root,
+  )
+}

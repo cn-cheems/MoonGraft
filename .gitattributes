@@ -1,0 +1,10 @@
+* text=auto eol=lf
+*.mbt text eol=lf
+*.mbti text eol=lf
+*.mbtx text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+/examples/** text eol=lf
+# Preserve whitespace in the pinned upstream workflow fixture and its derivatives.
+/examples/service/** -whitespace

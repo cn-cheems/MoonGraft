@@ -1,0 +1,1 @@
+Project-owned billing rules. A template update must preserve these bytes.

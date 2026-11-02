@@ -1,0 +1,150 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "cn-cheems/moongraft"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn plan_update(Baseline, Tree, Baseline) -> Plan raise GraftError
+
+pub fn track(String, String, Tree) -> Baseline raise GraftError
+
+// Errors
+pub(all) suberror GraftError {
+  InvalidPath(String, String)
+  LimitExceeded(String)
+  InvalidArchive(String)
+  InvalidTemplate(String)
+  InvalidDecision(String, String)
+  Unresolved(Array[String])
+  StaleProject
+  StructuralCollision(String, String)
+} derive(@debug.Debug)
+pub fn GraftError::message(Self) -> String
+pub fn GraftError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub struct Applied {
+  tree : Tree
+  baseline : Baseline
+} derive(Eq, @debug.Debug)
+pub fn Applied::equal(Self, Self) -> Bool
+pub fn Applied::not_equal(Self, Self) -> Bool
+pub fn Applied::to_repr(Self) -> @debug.Repr
+
+pub struct Baseline {
+  template_id : String
+  revision : String
+  tree : Tree
+} derive(Eq, @debug.Debug)
+pub fn Baseline::decode(String) -> Self raise GraftError
+pub fn Baseline::encode(Self) -> String
+pub fn Baseline::equal(Self, Self) -> Bool
+pub fn Baseline::not_equal(Self, Self) -> Bool
+pub fn Baseline::to_repr(Self) -> @debug.Repr
+
+pub struct Change {
+  path : String
+  kind : ChangeKind
+} derive(Eq, @debug.Debug)
+pub fn Change::equal(Self, Self) -> Bool
+pub fn Change::not_equal(Self, Self) -> Bool
+pub fn Change::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ChangeKind {
+  Unchanged
+  KeptLocal
+  TookTemplate
+  Merged
+  Conflict(ConflictReason)
+} derive(Eq, @debug.Debug)
+pub fn ChangeKind::equal(Self, Self) -> Bool
+pub fn ChangeKind::not_equal(Self, Self) -> Bool
+pub fn ChangeKind::to_repr(Self) -> @debug.Repr
+
+pub struct ConflictDetail {
+  reason : ConflictReason
+  base : File?
+  project : File?
+  template : File?
+} derive(Eq, @debug.Debug)
+pub fn ConflictDetail::equal(Self, Self) -> Bool
+pub fn ConflictDetail::not_equal(Self, Self) -> Bool
+pub fn ConflictDetail::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ConflictReason {
+  BothAdded
+  BothModified
+  TemplateDeleted
+  ProjectDeleted
+  TextMergeLimit
+} derive(Eq, @debug.Debug)
+pub fn ConflictReason::equal(Self, Self) -> Bool
+pub fn ConflictReason::not_equal(Self, Self) -> Bool
+pub fn ConflictReason::to_repr(Self) -> @debug.Repr
+
+pub struct Decision {
+  path : String
+  resolution : Resolution
+} derive(Eq, @debug.Debug)
+pub fn Decision::equal(Self, Self) -> Bool
+pub fn Decision::new(String, Resolution) -> Self
+pub fn Decision::not_equal(Self, Self) -> Bool
+pub fn Decision::to_repr(Self) -> @debug.Repr
+
+pub struct File {
+  path : String
+  content : Bytes
+  executable : Bool
+} derive(Eq, @debug.Debug)
+pub fn File::equal(Self, Self) -> Bool
+pub fn File::new(String, Bytes, executable? : Bool) -> Self raise GraftError
+pub fn File::not_equal(Self, Self) -> Bool
+pub fn File::text(String, String, executable? : Bool) -> Self raise GraftError
+pub fn File::to_repr(Self) -> @debug.Repr
+
+pub struct Plan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Plan::apply(Self, Tree) -> Applied raise GraftError
+pub fn Plan::changes(Self) -> Array[Change]
+pub fn Plan::conflict_detail(Self, String) -> ConflictDetail raise GraftError
+pub fn Plan::conflicts(Self) -> Array[Change]
+pub fn Plan::decisions(Self) -> Array[Decision]
+pub fn Plan::decode(String) -> Self raise GraftError
+pub fn Plan::encode(Self) -> String
+pub fn Plan::equal(Self, Self) -> Bool
+pub fn Plan::next_baseline(Self) -> Baseline
+pub fn Plan::not_equal(Self, Self) -> Bool
+pub fn Plan::report(Self) -> String
+pub fn Plan::resolve(Self, Array[Decision]) -> Self raise GraftError
+pub fn Plan::to_repr(Self) -> @debug.Repr
+pub fn Plan::unresolved(Self) -> Array[String]
+pub fn Plan::validate(Self, Tree) -> Unit raise GraftError
+
+pub(all) enum Resolution {
+  KeepLocal
+  TakeTemplate
+  Replace(File)
+  Delete
+} derive(Eq, @debug.Debug)
+pub fn Resolution::equal(Self, Self) -> Bool
+pub fn Resolution::not_equal(Self, Self) -> Bool
+pub fn Resolution::to_repr(Self) -> @debug.Repr
+
+pub struct Tree {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Tree::decode(String) -> Self raise GraftError
+pub fn Tree::encode(Self) -> String
+pub fn Tree::equal(Self, Self) -> Bool
+pub fn Tree::files(Self) -> Array[File]
+pub fn Tree::get(Self, String) -> File?
+pub fn Tree::new(Array[File]) -> Self raise GraftError
+pub fn Tree::not_equal(Self, Self) -> Bool
+pub fn Tree::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

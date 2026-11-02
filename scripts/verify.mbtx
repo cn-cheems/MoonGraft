@@ -1,0 +1,55 @@
+----
+import {
+  "moonbitlang/async@0.22.5",
+  "moonbitlang/async@0.22.5/fs",
+  "moonbitlang/async@0.22.5/shell",
+  "moonbitlang/core/env",
+}
+----
+
+///|
+async fn run(args : Array[String]) -> Unit {
+  println("moon " + args.join(" "))
+  let output = @shell.Cmd("moon", args).output()
+  if !output.stdout().is_empty() {
+    println(output.stdout().trim_end())
+  }
+  if !output.stderr().is_empty() {
+    println(output.stderr().trim_end())
+  }
+  output.check()
+}
+
+///|
+async fn main {
+  let native = match @env.args()[1:] {
+    [] => true
+    ["--portable-only"] => false
+    _ => fail("Unknown verification option")
+  }
+  run(["version", "--all"])
+  run(["fmt", "--check"])
+  run(["fmt", "--check", "scripts/demo.mbtx", "scripts/verify.mbtx"])
+  let paths = [
+    "pkg.generated.mbti", "workspace/pkg.generated.mbti", "cmd/main/pkg.generated.mbti",
+  ]
+  let before = []
+  for path in paths {
+    before.push(@fs.read_file(path).binary())
+  }
+  run(["info", "--target", "all"])
+  for i, path in paths {
+    guard @fs.read_file(path).binary() == before[i] else {
+      fail("Generated interface drift: " + path)
+    }
+  }
+  run(["check", "--target", "all", "--deny-warn"])
+  for target in ["wasm", "wasm-gc", "js"] {
+    run(["test", "--target", target, "--deny-warn"])
+  }
+  run(["run", "--deny-warn", "scripts/demo.mbtx"])
+  if native {
+    run(["test", "--target", "native", "--deny-warn"])
+    run(["run", "--deny-warn", "scripts/demo.mbtx", "native"])
+  }
+}
