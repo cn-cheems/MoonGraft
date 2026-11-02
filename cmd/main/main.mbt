@@ -17,6 +17,7 @@ let usage : String =
   #|resolve <plan.json> <conflict-path> <keep-local|take-template|delete> <new-plan.json>
   #|replace <plan.json> <conflict-path> <replacement-file> <new-plan.json>
   #|export <resolved-plan.json> <project-dir> <new-bundle-dir>
+  #|export-checked <resolved-plan.json> <project-dir> <policy.json> <new-bundle-dir>
   #|resume <bundle-dir>
   #|verify-export <bundle-dir>
   #|rollback-export <resolved-plan.json> <candidate-project-dir> <new-bundle-dir>
@@ -148,6 +149,16 @@ async fn run(args : Array[String]) -> Unit {
       @workspace.export_result(applied, destination)
       println("Verified candidate: " + destination + "/project")
       println("Next template baseline: " + destination + "/baseline.json")
+    }
+    ["export-checked", input, project, policy, destination] => {
+      let plan = @graft.Plan::decode(@workspace.read_text(input))
+      @workspace.require_outside(destination, project)
+      let applied = plan.prepare(
+        @workspace.scan(project),
+        @workspace.read_text(policy),
+      )
+      @workspace.export_result(applied, destination)
+      println("Policy-checked candidate: " + destination + "/project")
     }
     ["resume", destination] => {
       @workspace.resume_export(destination)

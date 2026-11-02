@@ -64,6 +64,12 @@ candidate/
 
 ## 已实现的规则
 
+推荐 CI 使用 `export-checked resolved.json my-project policy.json candidate`，让快照检查、
+变更预算与路径保护全部通过后才创建导出目录。策略格式为
+`["moongraft.policy","1",[最多删除数,最多二进制变更数,最大净增长字节数,[保护路径]]]`，
+可参考 [示例策略](examples/service/policy.json)。库接口为 `Plan::prepare`。
+普通 `export` 保持原行为，不隐式加载策略；这两种模式均不会替换源项目。
+
 路径保护：`protect resolved.json protected.json` 接受严格格式
 `["moongraft.protected","1",["src/","config/production.json"]]`。
 目录规则以 `/` 结尾，文件规则按完整路径匹配；ASCII 大小写不敏感，不解释 glob。

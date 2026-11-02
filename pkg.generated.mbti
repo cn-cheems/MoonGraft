@@ -133,6 +133,7 @@ pub fn Plan::next_baseline(Self) -> Baseline
 pub fn Plan::not_equal(Self, Self) -> Bool
 pub fn Plan::output_changes(Self) -> Array[OutputChange] raise GraftError
 pub fn Plan::output_json(Self) -> String raise GraftError
+pub fn Plan::prepare(Self, Tree, String) -> Applied raise GraftError
 pub fn Plan::project_drift(Self, Tree) -> Array[ProjectDrift]
 pub fn Plan::refresh(Self, Tree) -> Refreshed raise GraftError
 pub fn Plan::report(Self) -> String

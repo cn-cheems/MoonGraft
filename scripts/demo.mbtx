@@ -193,6 +193,44 @@ async fn main {
     "examples/service/template-v2",
     root + "/v3-repeat.json",
   ])
+  ignore(
+    command(target, [
+      "export-checked",
+      root + "/resolved.json",
+      source,
+      "examples/service/policy.json",
+      root + "/checked",
+    ]),
+  )
+  ignore(command(target, ["verify-export", root + "/checked"]))
+  @fs.write_file(
+    root + "/deny-policy.json",
+    "[\"moongraft.policy\",\"1\",[0,0,0,[]]]",
+  )
+  ignore(
+    command(
+      target,
+      [
+        "export-checked",
+        root + "/resolved.json",
+        source,
+        root + "/deny-policy.json",
+        root + "/denied",
+      ],
+      success=false,
+    ),
+  )
+  guard !@fs.exists(root + "/denied") else {
+    fail("Rejected policy created an export directory")
+  }
+  let third_report = command(target, [
+    "plan",
+    root + "/candidate/baseline.json",
+    project,
+    "v3",
+    "examples/service/template-v2",
+    root + "/v3-third.json",
+  ])
   ignore(command(target, ["preview-json", root + "/resolved.json"]))
   ignore(
     command(target, ["gate", root + "/resolved.json", "1", "0", "1048576"]),
@@ -226,7 +264,7 @@ async fn main {
   guard next_report.contains("Unresolved: 0") else {
     fail("Second upgrade lost its baseline")
   }
-  guard repeated_report == next_report else {
+  guard repeated_report == next_report && third_report == next_report else {
     fail("Repeated planning was not deterministic")
   }
   println(
