@@ -1,0 +1,13 @@
+import {
+  "cn-cheems/moongraft" @graft,
+  "cn-cheems/moongraft/workspace",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/async/shell",
+  "moonbitlang/core/json",
+  "moonbitlang/core/encoding/utf8",
+}
+
+supported_targets = "+wasm"
+
+pkgtype(kind: "executable")

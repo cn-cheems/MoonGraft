@@ -31,10 +31,12 @@ async fn main {
   run(["fmt", "--check"])
   run([
     "fmt", "--check", "scripts/demo.mbtx", "scripts/verify.mbtx", "scripts/package-check.mbtx",
+    "scripts/capture-upstream.mbtx",
   ])
   run(["-C", "examples/consumer", "fmt", "--check"])
   let paths = [
     "pkg.generated.mbti", "workspace/pkg.generated.mbti", "cmd/main/pkg.generated.mbti",
+    "integration/template_case/pkg.generated.mbti",
   ]
   let before = []
   for path in paths {
@@ -51,6 +53,7 @@ async fn main {
     run(["test", "--target", target, "--deny-warn"])
   }
   run(["run", "--deny-warn", "scripts/demo.mbtx"])
+  run(["run", "--deny-warn", "integration/template_case"])
   if native {
     run(["test", "--target", "native", "--deny-warn"])
     run(["run", "--deny-warn", "scripts/demo.mbtx", "native"])

@@ -25,3 +25,11 @@ Python, JavaScript or shell implementation of the upgrade engine.
 The archive-consumer verification approach was informed by the Apache-2.0
 [BIDS-Metadata-Trace package workflow](https://github.com/cn-cheems/BIDS-Metadata-Trace).
 MoonGraft's script and consumer are authored here; no BIDS domain logic is used.
+
+- Complete historical template snapshots: `mizchi/moonbit-template`, Apache-2.0,
+  commits and disclosed adaptations documented in [integration/README.md](integration/README.md).
+  Each snapshot includes upstream LICENSE, source, tests and notices verbatim.
+  The example project adds clearly marked local business files and README text.
+- The case uses `moonbitlang/quickcheck@0.15.1` (Apache-2.0) as an explicit
+  compatibility pin for the upstream property's test dependency. It is not a
+  dependency of the MoonGraft core.

@@ -1,0 +1,67 @@
+----
+import {
+  "moonbitlang/async@0.22.5",
+  "moonbitlang/async@0.22.5/shell",
+  "moonbitlang/async@0.22.5/fs",
+}
+----
+
+///|
+fn hex(bytes : Bytes) -> String {
+  let out = StringBuilder()
+  for b in bytes {
+    for digit in [b.to_int() / 16, b.to_int() % 16] {
+      out.write_char(
+        "0123456789abcdef".code_unit_at(digit).to_int().unsafe_to_char(),
+      )
+    }
+  }
+  out.to_string()
+}
+
+///|
+async fn main {
+  let repository = "_work/upstream-template"
+  @fs.mkdir("integration/upstream", recursive=true, allow_exist=true)
+  for
+    revision in [
+      "4733b6fe1cf6d9ab51b61e2bbe2643d52d8998d4", "580024abc60f961eb0b5b866fb5b301f889ec365",
+    ] {
+    let listing = @shell.Cmd("git", ["ls-tree", "-r", revision], cwd=repository).output()
+    listing.check()
+    let records : Array[Json] = []
+    for line in listing.stdout().split("\n") {
+      if line.is_empty() {
+        continue
+      }
+      let fields = line.split("\t").to_array()
+      guard fields.length() == 2 else { fail("Unexpected Git tree record") }
+      let metadata = fields[0].split(" ").to_array()
+      guard metadata.length() == 3 && metadata[1] == "blob" else {
+        fail("Unsupported Git object")
+      }
+      let blob = @shell.Cmd(
+        "git",
+        ["cat-file", "blob", metadata[2].to_owned()],
+        cwd=repository,
+      ).output()
+      blob.check()
+      if fields[1] == "LICENSE" {
+        @fs.write_file("integration/upstream/LICENSE", blob.stdout_bytes())
+      }
+      records.push(
+        Json::array([
+          Json::string(fields[1].to_owned()),
+          Json::string(metadata[0].to_owned()),
+          Json::string(metadata[2].to_owned()),
+          Json::string(hex(blob.stdout_bytes())),
+        ]),
+      )
+    }
+    @fs.write_file(
+      "integration/upstream/" + revision + ".json",
+      Json::array([Json::string(revision), Json::array(records)]).stringify() +
+      "\n",
+    )
+  }
+}

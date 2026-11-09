@@ -16,7 +16,7 @@ keywords = [
   "developer-tools",
 ]
 
-description = "Reviewable template upgrades that preserve project customizations."
+description = "Reviewable upgrades between rendered project templates, preserving project customizations."
 
 preferred_target = "wasm"
 

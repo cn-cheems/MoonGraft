@@ -29,3 +29,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: moon update
       - run: moon run --deny-warn scripts/verify.mbtx
+      - uses: actions/upload-artifact@v4
+        with:
+          name: template-case-${{ matrix.os }}
+          path: _build/template-case.json
+          if-no-files-found: error

@@ -2,6 +2,10 @@
 
 ## 0.1.0 — initial repository milestone (unpublished)
 
+- Scope clarified as the post-render upgrade layer, with a complete historical
+  template adoption case, disclosed compatibility recipe, whole-output oracle,
+  business regression tests and revision-bound CI evidence.
+
 - Rendered-template provenance, immutable file trees and directory-level planning.
 - Conservative text merging with exact byte/newline preservation and explicit
   binary, addition, deletion and overlapping-edit conflicts.

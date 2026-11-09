@@ -6,6 +6,12 @@ deployment, performance superiority or ecosystem uniqueness.
 
 ## Reproduce from a clean checkout
 
+The [complete historical upstream-template case](../integration/README.md) is
+part of verification. Its adapted project is built, tested and executed on its
+JavaScript target; this is distinct from MoonGraft's own multi-target tests.
+It does not establish universal generator compatibility or downstream native
+support. All compatibility edits and upstream warnings are disclosed there.
+
 ```text
 moon update
 moon run --deny-warn scripts/verify.mbtx
