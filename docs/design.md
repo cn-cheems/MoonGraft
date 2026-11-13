@@ -67,6 +67,7 @@ versions. Resource bounds fail closed, with actionable diagnostics.
 
 1. Complete local baseline → plan → resolve → export → next-baseline workflow.
 2. Explicit rename mappings and richer review output, preserving current rules.
-3. Adapters for existing template generators and pinned Git template acquisition.
+3. Extend the implemented local Git source with pinned generator adapters,
+   replayable parameters, and remote version discovery.
 4. Batch repository upgrades and CI integration, with measured behavior on real
    consumers before making productivity or performance claims.

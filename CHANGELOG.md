@@ -2,9 +2,10 @@
 
 ## 0.1.0 — initial repository milestone (unpublished)
 
-- Scope clarified as the post-render upgrade layer, with a complete historical
-  template adoption case, disclosed compatibility recipe, whole-output oracle,
-  business regression tests and revision-bound CI evidence.
+- Local Git template creation, pinned source records, target revision checks,
+  upgrade planning and verified acceptance for subsequent upgrades.
+- Historical template adoption case with a disclosed compatibility recipe,
+  whole-output checks, business regression tests and revision-bound CI evidence.
 
 - Rendered-template provenance, immutable file trees and directory-level planning.
 - Conservative text merging with exact byte/newline preservation and explicit
@@ -19,6 +20,6 @@
 - Formatting/interface checks, strict portable tests, actual native CLI tests and
   package consumer execution in the cross-OS CI workflow.
 
-This is a local-workflow alpha, not a Mooncakes release. Git template acquisition,
-rename mappings, generator compatibility and batch repository updates remain
+This is a local-workflow alpha, not a Mooncakes release. Remote version discovery,
+rename mappings, parameterized generation and batch repository updates remain
 future work. See README for input limits and platform boundaries.

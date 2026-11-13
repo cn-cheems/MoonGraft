@@ -14,6 +14,7 @@
 
 初版验收入口：[复现与证据说明](docs/acceptance.md)、[变更记录](CHANGELOG.md)、
 [贡献及维护流程](CONTRIBUTING.md)。当前适合评估和试用本地模板升级工作流，支持范围见下文。
+[复审补充说明](docs/review-response.md)包含已实现功能、拟实现功能和 Copier、Cruft 功能对比。
 
 ## 快速验证
 
@@ -53,6 +54,7 @@ moon run cmd/main -- check-git source-v1.json <commit-v2>
 
 新项目在 `generated/project`。Git 适配器直接读取提交中的 blob，保留文件原字节，
 工作区中的未提交修改、Git 过滤器及模板钩子均不参与生成。需要本机 Git。
+Git LFS 指针按提交中的原始字节保存，实际对象由使用者另行获取。来源记录绑定当前机器上的仓库路径。
 Git 模板路径和文件沿用下文的边界。变量替换、条件路径和自动拉取远程版本属于后续能力。
 运行 `moon run --deny-warn scripts/git-lifecycle.mbtx` 可验证这个流程。
 
@@ -185,7 +187,7 @@ CI 集成可调用 `report-json plan.json` 或 `Plan::report_json()`。
 
 这是参考 [Copier](https://github.com/copier-org/copier) 和 [Cruft](https://github.com/cruft/cruft) 工作流的新 MoonBit 实现。现有 [moon-new](https://github.com/moonbit-community/moon-new) 负责创建项目，[moonctl](https://github.com/moonbitstack/moonctl) 侧重服务代码生成，[MoonEdit](https://mooncakes.io/docs/vectie/moonedit) 提供编辑器与文本合并核心。MoonGraft 的边界是模板来源、目录级三方升级、审阅决策、连续版本基线和完整候选项目导出。[调研依据与不确定性](docs/ecosystem.md)。
 
-计划中的能力：显式重命名映射、现有生成器适配、固定 Git 版本获取、多仓库批量升级。它们尚未实现。
+计划中的能力包括参数化生成、远程 Git 版本发现、显式重命名映射和多仓库批量升级。
 
 ## 许可证与来源
 

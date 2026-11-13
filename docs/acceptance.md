@@ -27,6 +27,13 @@ business-file preservation, baseline advancement, new-process interrupted-export
 recovery, stale-plan diagnostics, decision refresh, protected paths, policy
 rejection before directory creation, read-only verification and rollback.
 
+The Git lifecycle test uses a synthetic local repository with three commits.
+It verifies source capture and project creation from a committed subtree,
+candidate rejection after an unexpected edit, retry, and two successive
+upgrades with a preserved business file. Run it independently with
+`moon run --deny-warn scripts/git-lifecycle.mbtx`. Add `native` after the
+script path to exercise the native CLI with a local C toolchain.
+
 The separate consumer is built from `_build/publish/cn-cheems-moongraft-0.1.0.zip`
 inside a new temporary workspace. It confirms public APIs can upgrade, preserve
 project files, round-trip the plan, prepare under policy, refresh and roll back.
@@ -50,7 +57,6 @@ reproducible example and workflow sources.
 
 ## Next milestone boundaries
 
-Seek feedback from maintainers upgrading real rendered templates before adding
-features. Prioritize explicit rename provenance and generator adapters only after
-their archive, refresh and rollback semantics are specified. Measure performance
-with real consumers before claiming improvements.
+Verify parameterized creation and replay first, then existing-project linking
+and version discovery. The batch workflow will use these same source records.
+See the [review response](review-response.md) for acceptance scenarios.

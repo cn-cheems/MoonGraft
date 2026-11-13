@@ -16,7 +16,7 @@ keywords = [
   "developer-tools",
 ]
 
-description = "Reviewable upgrades between rendered project templates, preserving project customizations."
+description = "Create and track projects from pinned templates and adopt reviewed upgrades while preserving local changes."
 
 preferred_target = "wasm"
 

@@ -19,7 +19,10 @@ These projects cover useful lower or adjacent layers. MoonGraft owns explicit
 rendered-template provenance and directory lifecycle: old baseline, current
 project, new baseline, file ownership, additions/deletions, project preservation,
 reviewable decisions, stale-input rejection and verified candidate export.
-It deliberately does not build another template renderer or service generator.
+The current Git source reads committed files unchanged. Its creation step
+overlaps with the plain Git-template case of moon-new. Its additional API
+boundary is source records, planning across revisions and acceptance of a
+verified candidate. Parameterized generation is planned as an adapter.
 
 Real demand is evidenced by [Project Syn's Cruft-based component template
 synchronization](https://syn.tools/syn/explanations/component_template_sync.html)
