@@ -3,7 +3,9 @@ let usage : String =
   #|MoonGraft — project template management and reviewable upgrades
   #|
   #|capture-git <local-repo> <commit-sha> <subdir-or-dot> <new-source.json>
+  #|link-git <local-repo> <commit-sha> <subdir-or-dot> <existing-project-dir> <new-source.json>
   #|create-git <source.json> <new-bundle-dir>
+  #|discover-git <source.json>
   #|check-git <source.json> <target-commit-sha>
   #|plan-git <source.json> <project-dir> <target-commit-sha> <new-plan.json>
   #|accept-git <source.json> <resolved-plan.json> <accepted-project-dir> <new-source.json>
@@ -70,6 +72,35 @@ async fn run(args : Array[String]) -> Unit {
       @workspace.require_outside(output, source.repository)
       @workspace.write_new(output, source.encode())
       println("Recorded Git template source: " + output)
+    }
+    ["link-git", repository, revision, subdir, project, output] => {
+      @workspace.require_outside(output, project)
+      let source = @workspace.capture_git_source(
+        repository,
+        revision,
+        if subdir == "." {
+          ""
+        } else {
+          subdir
+        },
+      )
+      @workspace.require_outside(output, source.repository)
+      let comparison = source.inspect_project(@workspace.scan(project))
+      @workspace.write_new(output, source.encode())
+      println("Linked existing project to the selected Git baseline: " + output)
+      println(comparison.report())
+    }
+    ["discover-git", input] => {
+      let source = @workspace.GitSource::decode(@workspace.read_text(input))
+      let versions = source
+        .discover()
+        .map(version => {
+          Json::object({
+            "ref": Json::string(version.refname),
+            "revision": Json::string(version.revision),
+          })
+        })
+      println(Json::array(versions).stringify())
     }
     ["create-git", input, output] => {
       let source = @workspace.GitSource::decode(@workspace.read_text(input))

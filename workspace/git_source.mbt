@@ -182,6 +182,78 @@ pub async fn GitSource::at(self : GitSource, revision : String) -> GitSource {
 }
 
 ///|
+/// Review how an existing project differs from a maintainer-selected baseline.
+/// The project is never used to construct the baseline.
+pub fn GitSource::inspect_project(
+  self : GitSource,
+  current : @graft.Tree,
+) -> @graft.Plan raise @graft.GraftError {
+  @graft.plan_update(self.baseline, current, self.baseline)
+}
+
+///|
+/// A local ref and the immutable descendant commit it pointed to when listed.
+pub struct GitVersion {
+  refname : String
+  revision : String
+}
+
+///|
+/// List locally known branch and tag refs pointing to descendants of the
+/// recorded commit. Results are sorted by full ref name. No fetching occurs.
+pub async fn GitSource::discover(self : GitSource) -> Array[GitVersion] {
+  let baseline = self.baseline.revision
+  let listing = @utf8.decode(
+    git_read(
+      self.repository,
+      [
+        "for-each-ref",
+        "--contains=" + baseline,
+        "--no-merged=" + baseline,
+        "--sort=refname",
+        "--format=%(refname)%09%(objecttype)%09%(objectname)%09%(*objecttype)%09%(*objectname)",
+        "refs/heads",
+        "refs/tags",
+        "refs/remotes",
+      ],
+      1048576,
+    ),
+    ignore_bom=false,
+  )
+  let versions = []
+  for line in listing.split("\n") {
+    if line.is_empty() {
+      continue
+    }
+    guard line.split("\t").to_array()
+      is [refname, kind, oid, peeled_kind, peeled_oid] else {
+      raise WorkspaceError("Invalid Git version listing")
+    }
+    let revision = match (kind, peeled_kind) {
+      ("commit", _) => oid.to_owned()
+      ("tag", "commit") => peeled_oid.to_owned()
+      ("tag", "tag") => {
+        let object = oid.to_owned()
+        require_git_sha(object)
+        @utf8.decode(
+          git_read(
+            self.repository,
+            ["rev-parse", "--verify", object + "^{commit}"],
+            4096,
+          ),
+        )
+        .trim()
+        .to_owned()
+      }
+      _ => raise WorkspaceError("Expected a commit ref: " + refname.to_owned())
+    }
+    require_git_sha(revision)
+    versions.push({ refname: refname.to_owned(), revision, })
+  }
+  versions
+}
+
+///|
 /// Plan an upgrade against a commit from the recorded source.
 pub async fn GitSource::plan_upgrade(
   self : GitSource,

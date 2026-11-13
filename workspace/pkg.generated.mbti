@@ -41,8 +41,15 @@ pub async fn GitSource::accept_upgrade(Self, @moongraft.Plan, @moongraft.Tree) -
 pub async fn GitSource::at(Self, String) -> Self
 pub async fn GitSource::create_project(Self, String) -> Unit
 pub fn GitSource::decode(String) -> Self raise
+pub async fn GitSource::discover(Self) -> Array[GitVersion]
 pub fn GitSource::encode(Self) -> String
+pub fn GitSource::inspect_project(Self, @moongraft.Tree) -> @moongraft.Plan raise @moongraft.GraftError
 pub async fn GitSource::plan_upgrade(Self, @moongraft.Tree, String) -> @moongraft.Plan
+
+pub struct GitVersion {
+  refname : String
+  revision : String
+}
 
 // Type aliases
 

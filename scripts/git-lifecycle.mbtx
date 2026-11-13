@@ -66,6 +66,23 @@ async fn main {
   let second = commit(repository, "service template v2")
   @fs.write_file(repository + "/service/guide.md", "Run the service tests.\n")
   let third = commit(repository, "service template v3")
+  ignore(git(repository, ["tag", "v1", first]))
+  ignore(git(repository, ["tag", "v2", second]))
+  let first_tree = git(repository, ["rev-parse", first + "^{tree}"])
+  let unrelated = git(repository, [
+    "-c", "user.name=MoonGraft fixture", "-c", "user.email=fixture@example.invalid",
+    "-c", "commit.gpgSign=false", "commit-tree", first_tree, "-m", "Unrelated history",
+  ])
+  ignore(git(repository, ["tag", "unrelated", unrelated]))
+  ignore(
+    git(repository, [
+      "-c", "user.name=MoonGraft fixture", "-c", "user.email=fixture@example.invalid",
+      "-c", "tag.gpgSign=false", "tag", "-a", "v3", "-m", "Release v3", third,
+    ]),
+  )
+  ignore(
+    git(repository, ["update-ref", "refs/remotes/upstream/service", third]),
+  )
   @fs.write_file(repository + "/service/settings.txt", "uncommitted\n")
 
   let source = root + "/source.json"
@@ -106,26 +123,72 @@ async fn main {
     fail("Unexpected source version check")
   }
   let project = bundle + "/project"
+  let existing = root + "/existing-service"
   let plan = root + "/plan.json"
   let resolved = root + "/resolved.json"
   let candidate = root + "/candidate"
   let advanced = root + "/source-v2.json"
   let original = @fs.read_file(source).binary()
-  @fs.write_file(project + "/settings.txt", "version=team\n")
-  @fs.write_file(project + "/business.txt", "team feature\n")
-  let report = cli(["plan-git", source, project, second, plan])
+  @fs.mkdir(existing)
+  @fs.write_file(existing + "/settings.txt", "version=team\n")
+  @fs.write_file(existing + "/business.txt", "team feature\n")
+  @fs.write_file(existing + "/logo.bin", b"\x00\xff")
+  let linked = root + "/linked.json"
+  let link_report = cli([
+    "link-git", repository, first, "service", existing, linked,
+  ])
+  guard link_report.contains("keep-local\tbusiness.txt") &&
+    @fs.read_file(linked).binary() == original else {
+    fail(
+      "Link must report local customization and record only the chosen template baseline",
+    )
+  }
+  let invalid = existing + "/source.json"
+  ignore(
+    cli(
+      ["link-git", repository, first, "service", existing, invalid],
+      error="must be outside the source project",
+    ),
+  )
+  guard !@fs.exists(invalid) else {
+    fail("Link wrote into the existing project")
+  }
+  ignore(
+    cli(
+      ["link-git", repository, second, "service", existing, linked],
+      error="linked.json",
+    ),
+  )
+  guard @fs.read_file(linked).binary() == original else {
+    fail("Link overwrote a prior record")
+  }
+  let versions = cli(["discover-git", linked])
+  guard versions == cli(["discover-git", linked]) &&
+    !versions.contains("refs/tags/v1") &&
+    !versions.contains("refs/tags/unrelated") &&
+    versions.contains(
+      "\"ref\":\"refs/tags/v2\",\"revision\":\"" + second + "\"",
+    ) &&
+    versions.contains("\"ref\":\"refs/tags/v3\",\"revision\":\"" + third + "\"") &&
+    versions.contains(
+      "\"ref\":\"refs/remotes/upstream/service\",\"revision\":\"" + third + "\"",
+    ) else {
+    fail("Unexpected pinned descendant versions: " + versions)
+  }
+  let report = cli(["plan-git", linked, existing, second, plan])
   guard report.contains("Unresolved: 1") else {
     fail("Expected overlapping settings edits to require a decision")
   }
   ignore(
-    cli(["export", plan, project, candidate], error="Resolve these conflicts"),
+    cli(["export", plan, existing, candidate], error="Resolve these conflicts"),
   )
   ignore(cli(["resolve", plan, "settings.txt", "take-template", resolved]))
-  ignore(cli(["export", resolved, project, candidate]))
+  ignore(cli(["export", resolved, existing, candidate]))
   let accepted = candidate + "/project"
   guard @fs.read_file(accepted + "/settings.txt").binary() == b"version=2\n" &&
     @fs.read_file(accepted + "/business.txt").binary() == b"team feature\n" &&
-    @fs.read_file(project + "/settings.txt").binary() == b"version=team\n" else {
+    @fs.read_file(existing + "/settings.txt").binary() == b"version=team\n" &&
+    @fs.read_file(project + "/settings.txt").binary() == b"version=1\n" else {
     fail(
       "Candidate must contain the chosen template edit and preserve business files",
     )
@@ -154,6 +217,12 @@ async fn main {
     @fs.read_file(source).binary() == original else {
     fail(
       "New source record must match the template alone and preserve the old record",
+    )
+  }
+  ignore(git(repository, ["tag", "-f", "v3", second]))
+  guard !cli(["discover-git", advanced]).contains("refs/tags/v3") else {
+    fail(
+      "Discovery must exclude a moved tag now pointing at the recorded revision",
     )
   }
   let next = root + "/next.json"

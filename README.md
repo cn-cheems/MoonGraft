@@ -6,7 +6,7 @@
 
 适合维护多个服务、库或应用模板的平台团队和开源维护者。可以直接使用本地 Git 模板，也可以接入已有生成器的渲染结果。
 
-当前支持从本地 Git 固定提交创建项目、保存模板来源、检查指定新版本、规划升级、导出候选并记录已采用的新版本。
+当前支持从本地 Git 固定提交创建或绑定项目、保存模板来源、发现本地候选版本、规划升级、导出候选并记录已采用的新版本。
 可处理不同语言的普通文件，不等于兼容所有生成器或保证合并后业务语义正确。
 [真实模板两个版本的完整升级证据](integration/README.md)包含来源、渲染适配、业务测试和复现命令。
 
@@ -57,6 +57,20 @@ moon run cmd/main -- check-git source-v1.json <commit-v2>
 Git LFS 指针按提交中的原始字节保存，实际对象由使用者另行获取。来源记录绑定当前机器上的仓库路径。
 Git 模板路径和文件沿用下文的边界。变量替换、条件路径和自动拉取远程版本属于后续能力。
 运行 `moon run --deny-warn scripts/git-lifecycle.mbtx` 可验证这个流程。
+
+## 为既有项目绑定模板
+
+从项目历史中确认最初采用的模板提交，再创建来源记录。命令会列出既有项目相对该基线保留的本地改动，既有项目文件保持原样。
+来源记录保存的是选定提交的模板快照。提交选择需要维护者确认，MoonGraft 无法从定制文件推断其来源。
+
+```text
+moon run cmd/main -- link-git local-template <original-commit-sha> . existing-project source-v1.json
+moon run cmd/main -- discover-git source-v1.json
+```
+
+`discover-git` 输出 JSON，列出指向基线后代提交的本地分支、标签和本地已知的远端跟踪分支。
+每条包含完整的 `ref` 和不可变的 `revision`，按引用名称排序。选择一个 `revision` 传给 `check-git` 或 `plan-git`。
+命令只读取当前仓库中的 Git 引用。浅克隆中可见的历史可能不完整。需要远端更新时，先在模板仓库自行获取，再运行发现命令。
 
 ## 从记录连续升级
 

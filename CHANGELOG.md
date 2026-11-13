@@ -4,6 +4,8 @@
 
 - Local Git template creation, pinned source records, target revision checks,
   upgrade planning and verified acceptance for subsequent upgrades.
+- Existing-project linking with a local customization report, and local
+  descendant discovery with pinned SHAs for branches and tags.
 - Historical template adoption case with a disclosed compatibility recipe,
   whole-output checks, business regression tests and revision-bound CI evidence.
 
