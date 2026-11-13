@@ -2,6 +2,9 @@
 let usage : String =
   #|MoonGraft — reviewable project-template upgrades
   #|
+  #|capture-git <local-repo> <commit-sha> <subdir-or-dot> <new-source.json>
+  #|create-git <source.json> <new-bundle-dir>
+  #|check-git <source.json> <target-commit-sha>
   #|track <template-id> <revision> <rendered-template-dir> <new-baseline.json>
   #|plan <baseline.json> <project-dir> <new-revision> <new-template-dir> <new-plan.json>
   #|review <plan.json>
@@ -52,6 +55,36 @@ fn show_file(label : String, file : @graft.File?) -> Unit {
 async fn run(args : Array[String]) -> Unit {
   match args {
     [] | ["--help"] | ["-h"] => println(usage)
+    ["capture-git", repository, revision, subdir, output] => {
+      let source = @workspace.capture_git_source(
+        repository,
+        revision,
+        if subdir == "." {
+          ""
+        } else {
+          subdir
+        },
+      )
+      @workspace.require_outside(output, source.repository)
+      @workspace.write_new(output, source.encode())
+      println("Recorded Git template source: " + output)
+    }
+    ["create-git", input, output] => {
+      let source = @workspace.GitSource::decode(@workspace.read_text(input))
+      source.create_project(output)
+      println("Verified generated project: " + output + "/project")
+    }
+    ["check-git", input, revision] => {
+      let source = @workspace.GitSource::decode(@workspace.read_text(input))
+      let target = source.at(revision)
+      if source.baseline.revision == target.baseline.revision {
+        println("Already recorded: " + revision)
+      } else if source.baseline.tree == target.baseline.tree {
+        println("New commit with identical template files: " + revision)
+      } else {
+        println("New commit with template changes: " + revision)
+      }
+    }
     ["track", id, revision, root, output] => {
       let baseline = @graft.track(id, revision, @workspace.scan(root))
       @workspace.write_new(output, baseline.encode())
@@ -184,6 +217,10 @@ async fn main {
   run(@env.args()[1:].to_owned()) catch {
     @graft.GraftError::_ as e => {
       @stdio.stderr.write("MoonGraft: " + e.message() + "\n")
+      raise e
+    }
+    @workspace.WorkspaceError(message) as e => {
+      @stdio.stderr.write("MoonGraft: " + message + "\n")
       raise e
     }
     e => {

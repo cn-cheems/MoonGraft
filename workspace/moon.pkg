@@ -1,6 +1,7 @@
 import {
   "cn-cheems/moongraft" @graft,
   "moonbitlang/async/fs",
+  "moonbitlang/async/shell",
   "moonbitlang/core/env",
   "moonbitlang/core/json",
   "moonbitlang/core/encoding/utf8",

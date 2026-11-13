@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub async fn capture_git_source(String, String, String) -> GitSource
+
 pub async fn export_result(@moongraft.Applied, String) -> Unit
 
 pub async fn read_bytes(String, limit? : Int32) -> Bytes
@@ -30,6 +32,15 @@ pub(all) suberror WorkspaceError {
 }
 
 // Types and methods
+pub struct GitSource {
+  repository : String
+  subdir : String
+  baseline : @moongraft.Baseline
+}
+pub async fn GitSource::at(Self, String) -> Self
+pub async fn GitSource::create_project(Self, String) -> Unit
+pub fn GitSource::decode(String) -> Self raise
+pub fn GitSource::encode(Self) -> String
 
 // Type aliases
 

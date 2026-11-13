@@ -31,7 +31,7 @@ async fn main {
   run(["fmt", "--check"])
   run([
     "fmt", "--check", "scripts/demo.mbtx", "scripts/verify.mbtx", "scripts/package-check.mbtx",
-    "scripts/capture-upstream.mbtx",
+    "scripts/capture-upstream.mbtx", "scripts/git-lifecycle.mbtx",
   ])
   run(["-C", "examples/consumer", "fmt", "--check"])
   let paths = [
@@ -53,10 +53,12 @@ async fn main {
     run(["test", "--target", target, "--deny-warn"])
   }
   run(["run", "--deny-warn", "scripts/demo.mbtx"])
+  run(["run", "--deny-warn", "scripts/git-lifecycle.mbtx"])
   run(["run", "--deny-warn", "integration/template_case"])
   if native {
     run(["test", "--target", "native", "--deny-warn"])
     run(["run", "--deny-warn", "scripts/demo.mbtx", "native"])
+    run(["run", "--deny-warn", "scripts/git-lifecycle.mbtx", "native"])
   }
   if native {
     run(["run", "--deny-warn", "scripts/package-check.mbtx"])

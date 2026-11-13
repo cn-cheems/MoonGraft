@@ -1,0 +1,107 @@
+----
+import {
+  "moonbitlang/async@0.22.5",
+  "moonbitlang/async@0.22.5/fs",
+  "moonbitlang/async@0.22.5/shell",
+  "moonbitlang/core/env",
+}
+----
+
+///|
+async fn git(repository : String, args : Array[String]) -> String {
+  let output = @shell.Cmd("git", args, cwd=repository).output()
+  output.check()
+  output.stdout().trim().to_owned()
+}
+
+///|
+async fn commit(repository : String, message : String) -> String {
+  ignore(git(repository, ["add", "."]))
+  ignore(
+    git(repository, [
+      "-c", "user.name=MoonGraft fixture", "-c", "user.email=fixture@example.invalid",
+      "-c", "commit.gpgSign=false", "commit", "-m", message,
+    ]),
+  )
+  git(repository, ["rev-parse", "HEAD"])
+}
+
+///|
+async fn cli(args : Array[String], error? : String) -> String {
+  let target = if @env.args()[1:] is ["native"] { "native" } else { "wasm" }
+  let output = @shell.Cmd(
+    "moon",
+    ["run", "--target", target, "--deny-warn", "cmd/main", "--"] + args,
+  ).output()
+  match error {
+    None => output.check()
+    Some(message) => {
+      guard output.exit_code() != 0 && output.stderr().contains(message) else {
+        fail(
+          "Expected diagnostic " +
+          message +
+          ": " +
+          output.stdout() +
+          output.stderr(),
+        )
+      }
+    }
+  }
+  output.stdout()
+}
+
+///|
+async fn main {
+  let root = @fs.tmpdir(prefix="moongraft-git-")
+  let repository = root + "/template"
+  @fs.mkdir(repository)
+  ignore(git(repository, ["init", "--object-format=sha1"]))
+  ignore(git(repository, ["config", "core.autocrlf", "false"]))
+  @fs.mkdir(repository + "/service")
+  @fs.write_file(repository + "/outside.txt", "outside")
+  @fs.write_file(repository + "/service/settings.txt", "version=1\n")
+  @fs.write_file(repository + "/service/logo.bin", b"\x00\xff")
+  let first = commit(repository, "service template v1")
+  @fs.write_file(repository + "/service/settings.txt", "version=2\n")
+  let second = commit(repository, "service template v2")
+  @fs.write_file(repository + "/service/settings.txt", "uncommitted\n")
+
+  let source = root + "/source.json"
+  let duplicate = root + "/duplicate.json"
+  let bundle = root + "/generated"
+  ignore(
+    cli(
+      ["capture-git", repository, "HEAD", "service", duplicate],
+      error="40-character Git commit SHA",
+    ),
+  )
+  ignore(
+    cli(
+      ["capture-git", repository, first, "missing", duplicate],
+      error="contains no files",
+    ),
+  )
+  guard !@fs.exists(duplicate) else {
+    fail("Invalid capture created an archive")
+  }
+  ignore(cli(["capture-git", repository, first, "service", source]))
+  ignore(cli(["capture-git", repository, first, "service", duplicate]))
+  guard @fs.read_file(source).binary() == @fs.read_file(duplicate).binary() else {
+    fail("Repeated source capture must be byte-identical")
+  }
+  ignore(cli(["create-git", source, bundle]))
+  ignore(cli(["verify-export", bundle]))
+  guard @fs.read_file(bundle + "/project/settings.txt").binary() ==
+    b"version=1\n" &&
+    @fs.read_file(bundle + "/project/logo.bin").binary() == b"\x00\xff" &&
+    !@fs.exists(bundle + "/project/outside.txt") else {
+    fail("Generation failed to reproduce the selected committed subtree")
+  }
+  let unchanged = cli(["check-git", source, first])
+  let changed = cli(["check-git", source, second])
+  guard unchanged.contains("Already recorded") &&
+    changed.contains("template changes") else {
+    fail("Unexpected source version check")
+  }
+  println("Pinned Git template creation verified in " + root)
+}

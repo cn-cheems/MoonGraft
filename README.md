@@ -2,11 +2,11 @@
 
 [![Verify](https://github.com/cn-cheems/MoonGraft/actions/workflows/ci.yml/badge.svg)](https://github.com/cn-cheems/MoonGraft/actions/workflows/ci.yml)
 
-**面向已渲染项目模板的可审阅升级引擎与 MoonBit 库。** 根据旧模板基线、当前项目、新模板三份文件树，生成可审阅的升级计划，保留业务修改，对重叠修改要求显式协调，再导出完整候选项目。
+**面向多语言项目的模板管理与持续升级工具，也可作为 MoonBit 库集成。** 根据旧模板基线、当前项目、新模板三份文件树，生成可审阅的升级计划，保留业务修改，对重叠修改要求显式协调，再导出完整候选项目。
 
 适合维护多个服务、库或应用模板的平台团队和开源维护者。已有模板生成器可以继续生成文件；MoonGraft 接收其渲染结果，负责项目创建之后的升级生命周期。
 
-首期交付固定为渲染后的升级层，不包含通用模板生成器、远程模板发现或各框架的语义迁移。
+当前支持从本地 Git 固定提交创建项目、保存模板来源和检查指定新版本。已有生成器可以通过渲染目录接入升级引擎。
 可处理不同语言的普通文件，不等于兼容所有生成器或保证合并后业务语义正确。
 [真实模板两个版本的完整升级证据](integration/README.md)包含来源、渲染适配、业务测试和复现命令。
 
@@ -39,6 +39,22 @@ moon run --deny-warn scripts/verify.mbtx --portable-only
 ```text
 moon run --deny-warn scripts/verify.mbtx
 ```
+
+## 从 Git 模板创建项目
+
+先将模板仓库准备到本机。以完整的 SHA-1 提交 ID 固定版本，第四个参数用 `.` 选择根目录，
+也可以使用 `templates/service` 选定一个子目录。源记录保存 Git 仓库绝对路径、子目录、提交与模板文件树。
+
+```text
+moon run cmd/main -- capture-git local-template <commit-v1> . source-v1.json
+moon run cmd/main -- create-git source-v1.json generated
+moon run cmd/main -- check-git source-v1.json <commit-v2>
+```
+
+新项目在 `generated/project`。Git 适配器直接读取提交中的 blob，保留文件原字节，
+工作区中的未提交修改、Git 过滤器及模板钩子均不参与生成。需要本机 Git。
+Git 模板路径和文件沿用下文的边界。变量替换、条件路径和自动拉取远程版本属于后续能力。
+运行 `moon run --deny-warn scripts/git-lifecycle.mbtx` 可验证这个流程。
 
 ## 实际目录升级
 
