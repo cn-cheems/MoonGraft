@@ -4,9 +4,9 @@
 
 **面向多语言项目的模板管理与持续升级工具，也可作为 MoonBit 库集成。** 根据旧模板基线、当前项目、新模板三份文件树，生成可审阅的升级计划，保留业务修改，对重叠修改要求显式协调，再导出完整候选项目。
 
-适合维护多个服务、库或应用模板的平台团队和开源维护者。已有模板生成器可以继续生成文件；MoonGraft 接收其渲染结果，负责项目创建之后的升级生命周期。
+适合维护多个服务、库或应用模板的平台团队和开源维护者。可以直接使用本地 Git 模板，也可以接入已有生成器的渲染结果。
 
-当前支持从本地 Git 固定提交创建项目、保存模板来源和检查指定新版本。已有生成器可以通过渲染目录接入升级引擎。
+当前支持从本地 Git 固定提交创建项目、保存模板来源、检查指定新版本、规划升级、导出候选并记录已采用的新版本。
 可处理不同语言的普通文件，不等于兼容所有生成器或保证合并后业务语义正确。
 [真实模板两个版本的完整升级证据](integration/README.md)包含来源、渲染适配、业务测试和复现命令。
 
@@ -42,7 +42,7 @@ moon run --deny-warn scripts/verify.mbtx
 
 ## 从 Git 模板创建项目
 
-先将模板仓库准备到本机。以完整的 SHA-1 提交 ID 固定版本，第四个参数用 `.` 选择根目录，
+先将模板仓库准备到本机。以完整的 SHA-1 提交 ID 固定版本，子目录参数用 `.` 选择根目录，
 也可以使用 `templates/service` 选定一个子目录。源记录保存 Git 仓库绝对路径、子目录、提交与模板文件树。
 
 ```text
@@ -55,6 +55,23 @@ moon run cmd/main -- check-git source-v1.json <commit-v2>
 工作区中的未提交修改、Git 过滤器及模板钩子均不参与生成。需要本机 Git。
 Git 模板路径和文件沿用下文的边界。变量替换、条件路径和自动拉取远程版本属于后续能力。
 运行 `moon run --deny-warn scripts/git-lifecycle.mbtx` 可验证这个流程。
+
+## 从记录连续升级
+
+将下面的 `generated/project` 换成实际使用中的项目目录。归档、候选目录和来源记录均放在项目目录之外。
+
+```text
+moon run cmd/main -- plan-git source-v1.json generated/project <commit-v2> plan-v2.json
+moon run cmd/main -- review plan-v2.json
+moon run cmd/main -- export plan-v2.json generated/project candidate-v2
+moon run cmd/main -- accept-git source-v1.json plan-v2.json candidate-v2/project source-v2.json
+moon run cmd/main -- plan-git source-v2.json candidate-v2/project <commit-v3> plan-v3.json
+```
+
+若计划有冲突，先按下文方法生成已协调计划，导出及采用时都传入该计划。
+先在候选目录运行自己的构建和业务测试，再采用候选并保存新记录。也可把已采用的实际项目目录传给
+`accept-git`，其内容必须与计划结果一致。接受阶段核验旧基线、候选文件树及目标提交的模板文件，
+然后独占创建下一版记录，旧记录可继续用于核查或回退。
 
 ## 实际目录升级
 

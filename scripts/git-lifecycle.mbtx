@@ -64,6 +64,8 @@ async fn main {
   let first = commit(repository, "service template v1")
   @fs.write_file(repository + "/service/settings.txt", "version=2\n")
   let second = commit(repository, "service template v2")
+  @fs.write_file(repository + "/service/guide.md", "Run the service tests.\n")
+  let third = commit(repository, "service template v3")
   @fs.write_file(repository + "/service/settings.txt", "uncommitted\n")
 
   let source = root + "/source.json"
@@ -103,5 +105,68 @@ async fn main {
     changed.contains("template changes") else {
     fail("Unexpected source version check")
   }
-  println("Pinned Git template creation verified in " + root)
+  let project = bundle + "/project"
+  let plan = root + "/plan.json"
+  let resolved = root + "/resolved.json"
+  let candidate = root + "/candidate"
+  let advanced = root + "/source-v2.json"
+  let original = @fs.read_file(source).binary()
+  @fs.write_file(project + "/settings.txt", "version=team\n")
+  @fs.write_file(project + "/business.txt", "team feature\n")
+  let report = cli(["plan-git", source, project, second, plan])
+  guard report.contains("Unresolved: 1") else {
+    fail("Expected overlapping settings edits to require a decision")
+  }
+  ignore(
+    cli(["export", plan, project, candidate], error="Resolve these conflicts"),
+  )
+  ignore(cli(["resolve", plan, "settings.txt", "take-template", resolved]))
+  ignore(cli(["export", resolved, project, candidate]))
+  let accepted = candidate + "/project"
+  guard @fs.read_file(accepted + "/settings.txt").binary() == b"version=2\n" &&
+    @fs.read_file(accepted + "/business.txt").binary() == b"team feature\n" &&
+    @fs.read_file(project + "/settings.txt").binary() == b"version=team\n" else {
+    fail(
+      "Candidate must contain the chosen template edit and preserve business files",
+    )
+  }
+  @fs.write_file(accepted + "/business.txt", "unexpected edit\n")
+  ignore(
+    cli(
+      ["accept-git", source, resolved, accepted, advanced],
+      error="differs from the resolved candidate",
+    ),
+  )
+  guard !@fs.exists(advanced) && @fs.read_file(source).binary() == original else {
+    fail("Failed acceptance wrote a source record")
+  }
+  @fs.write_file(accepted + "/business.txt", "team feature\n")
+  ignore(cli(["accept-git", source, resolved, accepted, advanced]))
+  ignore(
+    cli(
+      ["accept-git", advanced, resolved, accepted, root + "/wrong.json"],
+      error="different template baseline",
+    ),
+  )
+  let captured_v2 = root + "/capture-v2.json"
+  ignore(cli(["capture-git", repository, second, "service", captured_v2]))
+  guard @fs.read_file(advanced).binary() == @fs.read_file(captured_v2).binary() &&
+    @fs.read_file(source).binary() == original else {
+    fail(
+      "New source record must match the template alone and preserve the old record",
+    )
+  }
+  let next = root + "/next.json"
+  let next_bundle = root + "/next"
+  ignore(cli(["plan-git", advanced, accepted, third, next]))
+  ignore(cli(["export", next, accepted, next_bundle]))
+  guard @fs.read_file(next_bundle + "/project/guide.md").binary() ==
+    b"Run the service tests.\n" &&
+    @fs.read_file(next_bundle + "/project/business.txt").binary() ==
+    b"team feature\n" else {
+    fail("Second upgrade did not apply the new baseline")
+  }
+  println(
+    "Pinned Git template creation and successive upgrades verified in " + root,
+  )
 }

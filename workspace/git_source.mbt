@@ -180,3 +180,39 @@ pub async fn GitSource::at(self : GitSource, revision : String) -> GitSource {
   }
   target
 }
+
+///|
+/// Plan an upgrade against a commit from the recorded source.
+pub async fn GitSource::plan_upgrade(
+  self : GitSource,
+  current : @graft.Tree,
+  revision : String,
+) -> @graft.Plan {
+  let target = self.at(revision)
+  @graft.plan_update(self.baseline, current, target.baseline)
+}
+
+///|
+/// Advance the record after verifying the resolved candidate and both baselines.
+pub async fn GitSource::accept_upgrade(
+  self : GitSource,
+  plan : @graft.Plan,
+  accepted : @graft.Tree,
+) -> GitSource {
+  let original = plan.rollback(accepted) catch {
+    @graft.StaleProject =>
+      raise WorkspaceError(
+        "Accepted project differs from the resolved candidate; source record was not advanced",
+      )
+    error => raise error
+  }
+  guard original.baseline == self.baseline else {
+    raise WorkspaceError("Plan starts from a different template baseline")
+  }
+  let next = plan.next_baseline()
+  let target = self.at(next.revision)
+  guard target.baseline == next else {
+    raise WorkspaceError("Plan target differs from the pinned Git template")
+  }
+  target
+}

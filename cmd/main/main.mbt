@@ -1,10 +1,12 @@
 ///|
 let usage : String =
-  #|MoonGraft — reviewable project-template upgrades
+  #|MoonGraft — project template management and reviewable upgrades
   #|
   #|capture-git <local-repo> <commit-sha> <subdir-or-dot> <new-source.json>
   #|create-git <source.json> <new-bundle-dir>
   #|check-git <source.json> <target-commit-sha>
+  #|plan-git <source.json> <project-dir> <target-commit-sha> <new-plan.json>
+  #|accept-git <source.json> <resolved-plan.json> <accepted-project-dir> <new-source.json>
   #|track <template-id> <revision> <rendered-template-dir> <new-baseline.json>
   #|plan <baseline.json> <project-dir> <new-revision> <new-template-dir> <new-plan.json>
   #|review <plan.json>
@@ -84,6 +86,25 @@ async fn run(args : Array[String]) -> Unit {
       } else {
         println("New commit with template changes: " + revision)
       }
+    }
+    ["plan-git", input, project, revision, output] => {
+      @workspace.require_outside(output, project)
+      let source = @workspace.GitSource::decode(@workspace.read_text(input))
+      @workspace.require_outside(output, source.repository)
+      let plan = source.plan_upgrade(@workspace.scan(project), revision)
+      @workspace.write_new(output, plan.encode())
+      println(plan.report())
+    }
+    ["accept-git", input, plan_path, project, output] => {
+      @workspace.require_outside(output, project)
+      let source = @workspace.GitSource::decode(@workspace.read_text(input))
+      @workspace.require_outside(output, source.repository)
+      let plan = @graft.Plan::decode(@workspace.read_text(plan_path))
+      let target = source.accept_upgrade(plan, @workspace.scan(project))
+      @workspace.write_new(output, target.encode())
+      println(
+        "Recorded accepted template revision: " + target.baseline.revision,
+      )
     }
     ["track", id, revision, root, output] => {
       let baseline = @graft.track(id, revision, @workspace.scan(root))

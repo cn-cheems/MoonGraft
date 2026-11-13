@@ -37,10 +37,12 @@ pub struct GitSource {
   subdir : String
   baseline : @moongraft.Baseline
 }
+pub async fn GitSource::accept_upgrade(Self, @moongraft.Plan, @moongraft.Tree) -> Self
 pub async fn GitSource::at(Self, String) -> Self
 pub async fn GitSource::create_project(Self, String) -> Unit
 pub fn GitSource::decode(String) -> Self raise
 pub fn GitSource::encode(Self) -> String
+pub async fn GitSource::plan_upgrade(Self, @moongraft.Tree, String) -> @moongraft.Plan
 
 // Type aliases
 
