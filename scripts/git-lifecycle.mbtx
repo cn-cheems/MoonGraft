@@ -175,14 +175,87 @@ async fn main {
     ) else {
     fail("Unexpected pinned descendant versions: " + versions)
   }
+  let batch_manifest = root + "/batch.json"
+  let batch = root + "/batch"
+  let rejected = root + "/rejected"
+  let jobs = [
+    ["z-ready", source, project, second],
+    ["a-conflict", linked, existing, second],
+    ["bad-sha", source, project, "HEAD"],
+  ].map(row => Json::array(row.map(Json::string)))
+  @fs.write_file(
+    batch_manifest,
+    Json::array([
+      Json::string("moongraft.git-batch.v1"),
+      Json::array([jobs[0], jobs[0]]),
+    ]).stringify(),
+  )
+  ignore(
+    cli(
+      ["stage-git-batch", batch_manifest, rejected],
+      error="Duplicate project ID",
+    ),
+  )
+  guard !@fs.exists(rejected) else {
+    fail("Invalid manifest created an output directory")
+  }
+  @fs.write_file(
+    batch_manifest,
+    Json::array([Json::string("moongraft.git-batch.v1"), Json::array(jobs)]).stringify(),
+  )
+  ignore(
+    cli(
+      ["stage-git-batch", batch_manifest, existing + "/unsafe"],
+      error="must be outside",
+    ),
+  )
+  guard !@fs.exists(existing + "/unsafe") else {
+    fail("Batch wrote inside a project")
+  }
+  let batch_report = cli(["stage-git-batch", batch_manifest, batch])
+  let report_json = @fs.read_file(batch + "/report.json").text()
+  guard batch_report.trim() == report_json.trim() &&
+    batch_report.contains("\"status\":\"ready\"") &&
+    batch_report.contains("\"status\":\"conflicts\"") &&
+    batch_report.contains("\"status\":\"error\"") &&
+    batch_report.contains("40-character Git commit SHA") &&
+    batch_report.contains("settings.txt") &&
+    !@fs.exists(batch + "/a-conflict/candidate") &&
+    @fs.read_file(batch + "/z-ready/candidate/project/settings.txt").binary() ==
+    b"version=2\n" &&
+    @fs.read_file(source).binary() == original &&
+    @fs.read_file(linked).binary() == original else {
+    fail(
+      "Batch must emit an independent candidate, isolated diagnostics and unchanged source records",
+    )
+  }
+  ignore(cli(["verify-export", batch + "/z-ready/candidate"]))
+  let repeat = cli(["stage-git-batch", batch_manifest, root + "/repeat"])
+  guard batch_report == repeat else {
+    fail("Expected deterministic batch reports")
+  }
   let report = cli(["plan-git", linked, existing, second, plan])
+  guard @fs.read_file(batch + "/a-conflict/plan.json").binary() ==
+    @fs.read_file(plan).binary() else {
+    fail(
+      "Batch conflict plan must remain compatible with the single-project review flow",
+    )
+  }
   guard report.contains("Unresolved: 1") else {
     fail("Expected overlapping settings edits to require a decision")
   }
   ignore(
     cli(["export", plan, existing, candidate], error="Resolve these conflicts"),
   )
-  ignore(cli(["resolve", plan, "settings.txt", "take-template", resolved]))
+  ignore(
+    cli([
+      "resolve",
+      batch + "/a-conflict/plan.json",
+      "settings.txt",
+      "take-template",
+      resolved,
+    ]),
+  )
   ignore(cli(["export", resolved, existing, candidate]))
   let accepted = candidate + "/project"
   guard @fs.read_file(accepted + "/settings.txt").binary() == b"version=2\n" &&
@@ -213,7 +286,19 @@ async fn main {
   )
   let captured_v2 = root + "/capture-v2.json"
   ignore(cli(["capture-git", repository, second, "service", captured_v2]))
+  let batch_accepted = root + "/batch-source-v2.json"
+  ignore(
+    cli([
+      "accept-git",
+      source,
+      batch + "/z-ready/plan.json",
+      batch + "/z-ready/candidate/project",
+      batch_accepted,
+    ]),
+  )
   guard @fs.read_file(advanced).binary() == @fs.read_file(captured_v2).binary() &&
+    @fs.read_file(batch_accepted).binary() ==
+    @fs.read_file(captured_v2).binary() &&
     @fs.read_file(source).binary() == original else {
     fail(
       "New source record must match the template alone and preserve the old record",

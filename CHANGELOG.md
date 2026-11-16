@@ -6,6 +6,8 @@
   upgrade planning and verified acceptance for subsequent upgrades.
 - Existing-project linking with a local customization report, and local
   descendant discovery with pinned SHAs for branches and tags.
+- Batch preparation of independent Git-template upgrades with verified
+  candidates, resumable review plans and a machine-readable status report.
 - Historical template adoption case with a disclosed compatibility recipe,
   whole-output checks, business regression tests and revision-bound CI evidence.
 
@@ -23,5 +25,5 @@
   package consumer execution in the cross-OS CI workflow.
 
 This is a local-workflow alpha, not a Mooncakes release. Remote version discovery,
-rename mappings, parameterized generation and batch repository updates remain
+rename mappings and parameterized generation remain
 future work. See README for input limits and platform boundaries.

@@ -89,6 +89,19 @@ moon run cmd/main -- plan-git source-v2.json candidate-v2/project <commit-v3> pl
 `accept-git`，其内容必须与计划结果一致。接受阶段核验旧基线、候选文件树及目标提交的模板文件，
 然后独占创建下一版记录，旧记录可继续用于核查或回退。
 
+## 为多个项目准备升级
+
+在仓库根目录运行 `moon run cmd/main -- stage-git-batch batch.json output`。清单格式如下，每行依次填写项目 ID、来源记录、项目目录和目标提交 SHA。相对路径以 CLI 工作目录为准。
+
+```json
+["moongraft.git-batch.v1", [
+  ["api", "api-source.json", "work/api", "<commit-sha>"],
+  ["worker", "worker-source.json", "work/worker", "<commit-sha>"]
+]]
+```
+
+一批支持 1–16 个项目。输出目录须是新目录，且位于各项目及模板仓库之外。每个项目独立生成计划及候选，`report.json` 按项目 ID 排序，分别标记 `ready`、`conflicts` 或 `error`。冲突项目保留可用现有命令处理的计划。批次退出码 0 表示报告成功生成，CI 可根据报告中的各项目状态设置门禁。采用候选时逐个核验，并用 `accept-git` 保存该项目的新来源记录。
+
 ## 实际目录升级
 
 `template-v1` 和 `template-v2` 是使用相应版本与项目变量渲染好的模板目录。基线、计划与导出目录放在当前项目之外。输出文件使用独占创建，重复执行时请换一个新名称。
@@ -201,7 +214,7 @@ CI 集成可调用 `report-json plan.json` 或 `Plan::report_json()`。
 
 这是参考 [Copier](https://github.com/copier-org/copier) 和 [Cruft](https://github.com/cruft/cruft) 工作流的新 MoonBit 实现。现有 [moon-new](https://github.com/moonbit-community/moon-new) 负责创建项目，[moonctl](https://github.com/moonbitstack/moonctl) 侧重服务代码生成，[MoonEdit](https://mooncakes.io/docs/vectie/moonedit) 提供编辑器与文本合并核心。MoonGraft 的边界是模板来源、目录级三方升级、审阅决策、连续版本基线和完整候选项目导出。[调研依据与不确定性](docs/ecosystem.md)。
 
-计划中的能力包括参数化生成、远程 Git 版本发现、显式重命名映射和多仓库批量升级。
+计划中的能力包括参数化生成、远程 Git 版本发现和显式重命名映射。
 
 ## 许可证与来源
 

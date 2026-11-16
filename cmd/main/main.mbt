@@ -9,6 +9,7 @@ let usage : String =
   #|check-git <source.json> <target-commit-sha>
   #|plan-git <source.json> <project-dir> <target-commit-sha> <new-plan.json>
   #|accept-git <source.json> <resolved-plan.json> <accepted-project-dir> <new-source.json>
+  #|stage-git-batch <manifest.json> <new-output-dir>
   #|track <template-id> <revision> <rendered-template-dir> <new-baseline.json>
   #|plan <baseline.json> <project-dir> <new-revision> <new-template-dir> <new-plan.json>
   #|review <plan.json>
@@ -136,6 +137,10 @@ async fn run(args : Array[String]) -> Unit {
       println(
         "Recorded accepted template revision: " + target.baseline.revision,
       )
+    }
+    ["stage-git-batch", manifest, output] => {
+      let text = @utf8.decode(@workspace.read_bytes(manifest), ignore_bom=false)
+      println(@workspace.stage_git_batch(text, output).stringify())
     }
     ["track", id, revision, root, output] => {
       let baseline = @graft.track(id, revision, @workspace.scan(root))

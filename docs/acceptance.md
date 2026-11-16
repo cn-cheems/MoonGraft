@@ -30,7 +30,8 @@ rejection before directory creation, read-only verification and rollback.
 The Git lifecycle test uses a synthetic local repository with three commits.
 It verifies source capture and project creation from a committed subtree,
 linking an existing customized project, discovery of locally known descendant
-revisions, candidate rejection after an unexpected edit, retry, and two
+revisions, batch isolation between ready, conflicting and invalid entries,
+candidate rejection after an unexpected edit, retry, and two
 successive upgrades with a preserved business file. Run it independently with
 `moon run --deny-warn scripts/git-lifecycle.mbtx`. Add `native` after the
 script path to exercise the native CLI with a local C toolchain.
@@ -59,4 +60,4 @@ reproducible example and workflow sources.
 ## Next milestone boundaries
 
 Verify parameterized creation and replay, then extend local discovery with
-explicit remote acquisition. The batch workflow will use these same source records.
+explicit remote acquisition. The local batch workflow uses existing source records.
