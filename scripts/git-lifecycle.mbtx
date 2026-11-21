@@ -244,6 +244,71 @@ async fn main {
     cli(["stage-git-batch", root + "/ready-only.json", root + "/ready-only"]),
   )
   ignore(cli(["check-git-batch", root + "/ready-only/report.json"]))
+  let protected_manifest = root + "/protected-batch.json"
+  let policy = root + "/policy.json"
+  @fs.write_file(
+    protected_manifest,
+    Json::array([
+      Json::string("moongraft.git-batch.v1"),
+      Json::array([
+        jobs[0],
+        Json::array(["unchanged", source, project, first].map(Json::string)),
+      ]),
+    ]).stringify(),
+  )
+  @fs.write_file(
+    policy, "[\"moongraft.policy\",\"1\",[100,100,10000,[\"settings.txt\"]]]",
+  )
+  let protected_output = root + "/protected-output"
+  let protected_report = cli([
+    "stage-git-batch-checked", protected_manifest, policy, protected_output,
+  ])
+  guard protected_report.contains("z-ready") &&
+    protected_report.contains("Upgrade policy rejected") &&
+    protected_report.contains("\"status\":\"error\"") &&
+    protected_report.contains("\"status\":\"ready\"") &&
+    !@fs.exists(protected_output + "/z-ready/candidate") &&
+    @fs.exists(protected_output + "/z-ready/plan.json") else {
+    fail(
+      "Policy rejection must precede candidate creation and preserve the review plan",
+    )
+  }
+  ignore(cli(["verify-export", protected_output + "/unchanged/candidate"]))
+  ignore(
+    cli(
+      ["check-git-batch", protected_output + "/report.json"],
+      error="z-ready (error)",
+    ),
+  )
+  @fs.write_file(policy, "[\"moongraft.policy\",\"1\",[100,100,10000,[]]]")
+  ignore(
+    cli([
+      "stage-git-batch-checked",
+      protected_manifest,
+      policy,
+      root + "/allowed-output",
+    ]),
+  )
+  ignore(cli(["check-git-batch", root + "/allowed-output/report.json"]))
+  guard @fs.read_file(root + "/allowed-output/z-ready/plan.json").binary() ==
+    @fs.read_file(batch + "/z-ready/plan.json").binary() else {
+    fail("Policies must preserve the upgrade plan")
+  }
+  @fs.write_file(policy, "{}")
+  let invalid_output = root + "/invalid-policy"
+  ignore(
+    cli(["stage-git-batch-checked", protected_manifest, policy, invalid_output]),
+  )
+  ignore(
+    cli(
+      ["check-git-batch", invalid_output + "/report.json"],
+      error="Batch preparation blocked",
+    ),
+  )
+  guard !@fs.exists(invalid_output + "/unchanged/candidate") &&
+    !@fs.exists(invalid_output + "/z-ready/candidate") else {
+    fail("Malformed policy allowed a candidate export")
+  }
   let repeat = cli(["stage-git-batch", batch_manifest, root + "/repeat"])
   guard batch_report == repeat else {
     fail("Expected deterministic batch reports")

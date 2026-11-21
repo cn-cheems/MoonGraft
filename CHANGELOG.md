@@ -8,6 +8,8 @@
   descendant discovery with pinned SHAs for branches and tags.
 - Batch preparation of independent Git-template upgrades with verified
   candidates, resumable review plans and a machine-readable status report.
+- Strict batch-report CI gate and policy-checked batch preparation that
+  isolates project failures and retains rejected plans for review.
 - Historical template adoption case with a disclosed compatibility recipe,
   whole-output checks, business regression tests and revision-bound CI evidence.
 

@@ -10,6 +10,7 @@ let usage : String =
   #|plan-git <source.json> <project-dir> <target-commit-sha> <new-plan.json>
   #|accept-git <source.json> <resolved-plan.json> <accepted-project-dir> <new-source.json>
   #|stage-git-batch <manifest.json> <new-output-dir>
+  #|stage-git-batch-checked <manifest.json> <policy.json> <new-output-dir>
   #|check-git-batch <report.json>
   #|track <template-id> <revision> <rendered-template-dir> <new-baseline.json>
   #|plan <baseline.json> <project-dir> <new-revision> <new-template-dir> <new-plan.json>
@@ -143,6 +144,13 @@ async fn run(args : Array[String]) -> Unit {
       let text = @utf8.decode(@workspace.read_bytes(report), ignore_bom=false)
       @workspace.check_git_batch_report(text)
       println("All batch projects are ready for candidate review")
+    }
+    ["stage-git-batch-checked", manifest, policy, output] => {
+      let text = @utf8.decode(@workspace.read_bytes(manifest), ignore_bom=false)
+      let rules = @utf8.decode(@workspace.read_bytes(policy), ignore_bom=false)
+      println(
+        @workspace.stage_git_batch(text, output, policy=rules).stringify(),
+      )
     }
     ["stage-git-batch", manifest, output] => {
       let text = @utf8.decode(@workspace.read_bytes(manifest), ignore_bom=false)

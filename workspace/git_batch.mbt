@@ -73,6 +73,7 @@ async fn stage_git_entry(
   entry : BatchEntry,
   source : GitSource,
   destination : String,
+  policy : String?,
 ) -> Json {
   let current = scan(entry.project)
   let plan = source.plan_upgrade(current, entry.revision)
@@ -87,7 +88,12 @@ async fn stage_git_entry(
       Json::array(conflicts.map(Json::string)),
     )
   }
-  export_result(plan.apply(scan(entry.project)), directory + "/candidate")
+  let latest = scan(entry.project)
+  let applied = match policy {
+    Some(text) => plan.prepare(latest, text)
+    None => plan.apply(latest)
+  }
+  export_result(applied, directory + "/candidate")
   make_batch_report(entry, "ready", Json::array([]))
 }
 
@@ -95,7 +101,11 @@ async fn stage_git_entry(
 /// Stage independent upgrade plans and candidates for a versioned manifest.
 /// Each entry keeps its own baseline and explicit target revision. The output
 /// directory must be new. Project failures are recorded in the JSON report.
-pub async fn stage_git_batch(manifest : String, destination : String) -> Json {
+pub async fn stage_git_batch(
+  manifest : String,
+  destination : String,
+  policy? : String,
+) -> Json {
   let entries = parse_git_batch(manifest)
   // Check output placement before creating anything, including for bad entries
   // whose source records cannot be decoded.
@@ -119,7 +129,7 @@ pub async fn stage_git_batch(manifest : String, destination : String) -> Json {
       // that newly created directory.
       require_outside(destination, entry.project)
       require_outside(destination, source.repository)
-      stage_git_entry(entry, source, destination)
+      stage_git_entry(entry, source, destination, policy)
     } catch {
       error =>
         make_batch_report(entry, "error", Json::string(batch_error(error)))

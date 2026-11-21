@@ -106,6 +106,13 @@ moon run cmd/main -- plan-git source-v2.json candidate-v2/project <commit-v3> pl
 报告中全部项目为 `ready` 时退出码为 0，存在冲突、错误或格式异常时退出失败并给出项目 ID。
 这一步检查准备状态，采用前仍需核验候选目录并运行目标项目测试。
 
+需要对整批应用同一套删除预算、二进制变更预算、增长预算和路径保护时，使用
+`moon run cmd/main -- stage-git-batch-checked batch.json policy.json checked-output`。
+策略文件与单项目 `export-checked` 相同。每个无冲突计划在创建候选前独立检查策略，
+拒绝时保留计划并记录 `error`，其他项目继续准备。可调整策略后导出到新目录，
+再运行 `check-git-batch checked-output/report.json` 检查状态。
+库接口为 `stage_git_batch(manifest, output, policy=policy_text)`。
+
 ## 实际目录升级
 
 `template-v1` 和 `template-v2` 是使用相应版本与项目变量渲染好的模板目录。基线、计划与导出目录放在当前项目之外。输出文件使用独占创建，重复执行时请换一个新名称。

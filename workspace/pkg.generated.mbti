@@ -24,7 +24,7 @@ pub async fn resume_export(String) -> Unit
 
 pub async fn scan(String) -> @moongraft.Tree
 
-pub async fn stage_git_batch(String, String) -> Json
+pub async fn stage_git_batch(String, String, policy? : String) -> Json
 
 pub async fn verify_export(String) -> Unit
 
