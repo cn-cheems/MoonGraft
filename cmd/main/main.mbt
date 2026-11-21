@@ -5,6 +5,7 @@ let usage : String =
   #|capture-git <local-repo> <commit-sha> <subdir-or-dot> <new-source.json>
   #|link-git <local-repo> <commit-sha> <subdir-or-dot> <existing-project-dir> <new-source.json>
   #|create-git <source.json> <new-bundle-dir>
+  #|relocate-git <source.json> <new-local-repo> <new-source.json>
   #|discover-git <source.json>
   #|check-git <source.json> <target-commit-sha>
   #|plan-git <source.json> <project-dir> <target-commit-sha> <new-plan.json>
@@ -104,6 +105,13 @@ async fn run(args : Array[String]) -> Unit {
           })
         })
       println(Json::array(versions).stringify())
+    }
+    ["relocate-git", input, repository, output] => {
+      let source = @workspace.GitSource::decode(@workspace.read_text(input))
+      let relocated = source.relocate(repository)
+      @workspace.require_outside(output, relocated.repository)
+      @workspace.write_new(output, relocated.encode())
+      println("Verified relocated template source: " + output)
     }
     ["create-git", input, output] => {
       let source = @workspace.GitSource::decode(@workspace.read_text(input))

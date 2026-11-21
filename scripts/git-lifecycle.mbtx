@@ -399,6 +399,56 @@ async fn main {
     b"team feature\n" else {
     fail("Second upgrade did not apply the new baseline")
   }
+  let cloned = root + "/template-copy"
+  ignore(git(repository, ["clone", "--no-hardlinks", "--", repository, cloned]))
+  @fs.rename(repository, root + "/template-original", replace=false)
+  let relocated = root + "/relocated.json"
+  ignore(cli(["relocate-git", advanced, cloned, relocated]))
+  let relocated_again = root + "/relocated-again.json"
+  ignore(cli(["relocate-git", relocated, cloned, relocated_again]))
+  guard @fs.read_file(relocated).binary() ==
+    @fs.read_file(relocated_again).binary() &&
+    @fs.read_file(source).binary() == original else {
+    fail("Relocation must be deterministic and preserve earlier source records")
+  }
+  let empty_repository = root + "/empty-repository"
+  @fs.mkdir(empty_repository)
+  ignore(git(empty_repository, ["init", "--object-format=sha1"]))
+  let invalid_relocation = root + "/invalid-relocation.json"
+  ignore(
+    cli(
+      ["relocate-git", advanced, empty_repository, invalid_relocation],
+      error="Git cat-file failed",
+    ),
+  )
+  guard !@fs.exists(invalid_relocation) else {
+    fail("Invalid relocation wrote a record")
+  }
+  ignore(
+    cli(
+      [
+        "accept-git",
+        relocated,
+        resolved,
+        accepted,
+        root + "/wrong-location.json",
+      ],
+      error="different template baseline",
+    ),
+  )
+  let relocated_plan = root + "/relocated-plan.json"
+  ignore(cli(["plan-git", relocated, accepted, third, relocated_plan]))
+  ignore(
+    cli(["export", relocated_plan, accepted, root + "/relocated-candidate"]),
+  )
+  guard @fs.read_file(root + "/relocated-candidate/project/business.txt").binary() ==
+    b"team feature\n" &&
+    @fs.read_file(root + "/relocated-candidate/project/guide.md").binary() ==
+    b"Run the service tests.\n" else {
+    fail(
+      "Relocated source failed to preserve business files during its next upgrade",
+    )
+  }
   println(
     "Pinned Git template creation and successive upgrades verified in " + root,
   )

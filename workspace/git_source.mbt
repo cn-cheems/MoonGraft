@@ -192,6 +192,26 @@ pub fn GitSource::inspect_project(
 }
 
 ///|
+/// Rebind a record to a local copy after verifying the pinned commit, selected
+/// subtree and every baseline file. Plans must be regenerated for the new identity.
+pub async fn GitSource::relocate(
+  self : GitSource,
+  repository : String,
+) -> GitSource {
+  let target = capture_git_source(
+    repository,
+    self.baseline.revision,
+    self.subdir,
+  )
+  guard target.baseline.tree == self.baseline.tree else {
+    raise WorkspaceError(
+      "Relocated template differs from the recorded baseline",
+    )
+  }
+  target
+}
+
+///|
 /// A local ref and the immutable descendant commit it pointed to when listed.
 pub struct GitVersion {
   refname : String
