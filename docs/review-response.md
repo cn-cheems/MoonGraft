@@ -1,23 +1,23 @@
-# MoonGraft｜MoonBit 黑客松项目申报书（复审版）
+# MoonGraft｜MoonBit 黑客松申报书（复审版）
 
-**1. 项目名称**　MoonGraft：通用项目模板管理与持续升级工具。
+**1. 基本信息**　项目名称为 **MoonGraft——基于 MoonBit 的通用项目模板管理与持续升级工具**。 [GitHub 仓库](https://github.com/cn-cheems/MoonGraft)
 
-**2. 项目简介**　平台团队维护多个派生仓库时，常需反复同步模板的 CI、构建配置与目录结构。MoonGraft 串起项目创建或绑定、版本发现、升级规划、冲突处理、候选验证和基线推进，让维护者保留各仓库的业务改动，并持续采用新版模板。
+**2. 项目简介**　项目通过脚手架创建后，公共 CI、构建配置和发布流程常需人工逐仓库同步。MoonGraft 支持从固定 Git 提交创建或绑定项目、发现新版，再对比旧模板、当前项目和新模板，保留业务改动，协调冲突并导出候选。采用前可核验候选并运行项目测试，采用后记录新模板基线，供下一轮升级使用。
 
-**3. 项目方向与通用性**　面向平台团队、脚手架维护者和开源项目的开发者工具，提供 MoonBit 库及 CLI。基于可移植文件树、Git 提交和版本化记录，适用于不同语言的服务、应用与库。可从本地 Git 模板创建项目，也可接入已有生成器的渲染目录。
+**3. 项目方向及通用性**　开发者工具与软件工程基础设施，面向平台团队、开源组织和多项目维护者。提供 MoonBit 库和 CLI，可处理不同语言项目的普通文件，支持本地 Git 模板及已有生成器的渲染目录。核心库覆盖 Wasm、Wasm-GC、JavaScript 和原生目标，CLI 在 Windows、Linux、macOS 的 CI 中实际运行。 [验证记录](https://github.com/cn-cheems/MoonGraft/actions/runs/43894790112)
 
 **4. 预期使用场景**
 
-1. **新服务持续升级。** 从固定模板提交创建服务。上游更新 CI 后，生成升级候选，核对自定义检查仍在，运行服务测试并记录新基线。
-2. **既有仓库接入。** 将已定制的开源库绑定到历史模板提交，发现新标签并生成计划。维护者解决 README 冲突，通过发布前测试后采用候选，并保存新来源记录。
-3. **批量同步多个仓库。** 为 API、Worker 等项目准备各自的目标版本，批量输出候选和 JSON 状态。先验收无冲突项目，逐项处理其余冲突，各自推进基线。
+1. **团队服务模板升级。** 用固定模板创建服务。公共 CI 更新后生成候选，保留服务自定义检查，通过路径与预算检查和服务测试后采用，记录新基线。
+2. **开源组织统一发布规范。** 将现有库绑定到原模板提交。选定新版发布模板后批量生成候选和状态报告，先验收无冲突的库，再逐项协调冲突并保存各自的新基线。
+3. **定制项目跟进上游。** 用旧模板、新模板和当前项目生成计划。审阅期间若项目又有修改，刷新计划并撤销受影响的决策。采用前运行回归测试，必要时导出携带旧基线的回退候选。
 
-**5. 核心功能与验收**
+**5. 核心功能**　**已实现**固定提交创建与绑定、本地版本发现、目录级三方合并、批量审阅、过期诊断与刷新、策略门禁、候选恢复与回退、验收后推进基线，以及最多 16 个项目的独立批量准备。**拟实现**固定生成器版本并记录参数，验证两组参数下可重现生成与升级；增加显式远程版本获取，验证同一目标 SHA 可复用；增加显式重命名映射，验证移动文件后可保留本地改动。
 
-- **已实现**　固定提交创建或绑定、发现本地候选版本、三方升级与显式冲突处理、候选导出和回退、验收后推进基线，以及最多 16 个项目的本地批量准备。导出前检查当前快照，验收时核对候选文件与目标模板记录。
-- **拟实现**　固定生成器版本并记录非敏感参数，用两组参数复现生成及后续升级。增加显式远程版本获取，用上游更新验证可发现、固定并复用同一目标提交。
-- **复现**　运行 `moon run --deny-warn scripts/git-lifecycle.mbtx`，可验证两轮升级及同批项目的成功、冲突、错误隔离。另有公开模板历史版本的构建和回归测试案例。 [公开模板案例](../integration/README.md)
+**6. 项目性质**　参考成熟工具工作流，使用 MoonBit 自主实现核心，项目采用 Apache-2.0。属于独立实现项目，移植项不适用。 [第三方资源及依赖](https://github.com/cn-cheems/MoonGraft/blob/main/THIRD_PARTY.md)
 
-**6–7. 实现来源与成熟工具对比**　MoonBit 独立实现，采用 Apache-2.0。产品流程参考 Copier 与 Cruft，无移植项目。Copier 采用 Jinja 与回答文件，Cruft 基于 Cookiecutter 并提供 `link`、`check`、`diff`。MoonGraft 现有能力侧重固定提交的来源记录、独立候选、显式验收和逐项目批量状态。MoonBit 生态的 `moon-new` 已提供项目生成，可通过其渲染输出接入目录升级流程。 [Copier](https://copier.readthedocs.io/en/stable/updating/) · [Cruft](https://cruft.github.io/cruft/) · [moon-new](https://mooncakes.io/docs/moonbit-community/moon-new)
+**7. 参考项目与许可证**　Copier（MIT）使用 Jinja 和回答文件管理生成及更新，支持行内冲突标记或 `.rej`。Cruft（MIT）基于 Cookiecutter，支持绑定、检查与更新。MoonGraft 在本地工作流中提供独立候选、显式验收和逐项目批量状态，参数化渲染仍处于规划阶段。 [Copier 源码](https://github.com/copier-org/copier) · [Cruft 源码](https://github.com/cruft/cruft)
 
-**8. GitHub 仓库**　主分支已有超过 10 个涉及实现、测试或验收的有效提交。 [仓库](https://github.com/cn-cheems/MoonGraft) · [提交记录](https://github.com/cn-cheems/MoonGraft/commits/main/) · [跨平台 CI](https://github.com/cn-cheems/MoonGraft/actions/workflows/ci.yml)
+**8. 仓库及有效提交**　GitHub 主分支已有超过 10 个涉及独立功能、测试或验收材料的有效提交。 [提交记录](https://github.com/cn-cheems/MoonGraft/commits/main/)
+
+**9. 项目定位与技术可行性**　目标覆盖创建或绑定、版本发现、升级和采用全流程。首期从固定 Git 提交读取原始文件快照，通过有界三方比较生成计划。导出前复核当前快照，未解决冲突会阻止该项目导出；验收时复核候选文件与目标模板。运行 `moon run --deny-warn scripts/git-lifecycle.mbtx` 可复现连续两轮升级及批量错误隔离。候选的业务行为由目标项目自身的测试确认。 [公开模板案例](https://github.com/cn-cheems/MoonGraft/tree/main/integration)
