@@ -120,6 +120,7 @@ async fn stage_git_entry(
   }
   if entry.policy_path is Some(path) {
     let text = @utf8.decode(read_bytes(path), ignore_bom=false)
+    write_new(directory + "/policy.json", text)
     ignore(plan.prepare(latest, text))
   }
   export_result(applied, directory + "/candidate")
@@ -151,6 +152,16 @@ pub async fn stage_git_batch(
   }
   @fs.mkdir(destination)
   write_new(destination + "/manifest.json", manifest)
+  write_new(
+    destination + "/policy.json",
+    Json::array([
+      Json::string("moongraft.batch-policy.v1"),
+      match policy {
+        Some(text) => Json::string(text)
+        None => Json::null()
+      },
+    ]).stringify(),
+  )
   let results = []
   for entry in entries {
     let result = try {

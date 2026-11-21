@@ -336,11 +336,31 @@ async fn main {
     ]),
   )
   ignore(cli(["check-git-batch", root + "/allowed-output/report.json"]))
+  let allowed_directory = root + "/allowed-output"
+  let archived_policy = @fs.read_file(allowed_directory + "/policy.json").binary()
+  ignore(cli(["verify-git-batch", allowed_directory]))
+  @fs.write_file(
+    allowed_directory + "/policy.json",
+    Json::array([
+      Json::string("moongraft.batch-policy.v1"),
+      Json::string(
+        "[\"moongraft.policy\",\"1\",[100,100,10000,[\"settings.txt\"]]]",
+      ),
+    ]).stringify(),
+  )
+  ignore(
+    cli(
+      ["verify-git-batch", allowed_directory],
+      error="Upgrade policy rejected",
+    ),
+  )
+  @fs.write_file(allowed_directory + "/policy.json", archived_policy)
   guard @fs.read_file(root + "/allowed-output/z-ready/plan.json").binary() ==
     @fs.read_file(batch + "/z-ready/plan.json").binary() else {
     fail("Policies must preserve the upgrade plan")
   }
   @fs.write_file(policy, "{}")
+  ignore(cli(["verify-git-batch", allowed_directory]))
   let invalid_output = root + "/invalid-policy"
   ignore(
     cli(["stage-git-batch-checked", protected_manifest, policy, invalid_output]),
@@ -388,6 +408,10 @@ async fn main {
     fail("Each project must enforce its own policy")
   }
   ignore(cli(["verify-export", individual + "/a-open/candidate"]))
+  guard @fs.read_file(individual + "/a-open/policy.json").binary() ==
+    @fs.read_file(open_policy).binary() else {
+    fail("Individual policy snapshot differs from its input")
+  }
   ignore(
     cli(
       ["check-git-batch", individual + "/report.json"],
@@ -409,6 +433,19 @@ async fn main {
   guard !@fs.exists(combined + "/a-open/candidate") else {
     fail("Individual policy bypassed the common policy")
   }
+  @fs.write_file(
+    protected_policy, "[\"moongraft.policy\",\"1\",[10,10,10000,[]]]",
+  )
+  let individual_ready = root + "/individual-ready"
+  ignore(cli(["stage-git-batch", individual_manifest, individual_ready]))
+  ignore(cli(["verify-git-batch", individual_ready]))
+  let individual_snapshot = @fs.read_file(
+    individual_ready + "/a-open/policy.json",
+  ).binary()
+  @fs.remove(individual_ready + "/a-open/policy.json")
+  ignore(cli(["verify-git-batch", individual_ready], error="Expected a plan"))
+  @fs.write_file(individual_ready + "/a-open/policy.json", individual_snapshot)
+  ignore(cli(["verify-git-batch", individual_ready]))
   @fs.remove(open_policy)
   let missing_policy = root + "/missing-policy"
   ignore(cli(["stage-git-batch", individual_manifest, missing_policy]))

@@ -127,6 +127,10 @@ moon run cmd/main -- plan-git source-v2.json candidate-v2/project <commit-v3> pl
 再运行 `check-git-batch checked-output/report.json` 检查状态。
 库接口为 `stage_git_batch(manifest, output, policy=policy_text)`。
 
+批次根目录的 `policy.json` 记录当时传入的公共策略或明确的空策略，逐项目策略另存于对应项目目录。
+`verify-git-batch` 会使用保存的规则重新检查计划，后续修改外部策略文件也可复核原来的导出依据。
+这些记录用于本地一致性核验，验收前仍应审阅实际规则。
+
 项目需要不同规则时，使用版本 2 清单，每行增加一个必填的策略文件路径。
 
 ```json

@@ -90,15 +90,20 @@ pub async fn verify_git_batch(destination : String) -> Unit {
   let projects = ready_git_batch_projects(text)
   let names = @fs.readdir(destination, include_hidden=true)
   let captured = names.contains("manifest.json")
-  let metadata_count = if captured { 2 } else { 1 }
+  let has_rules = names.contains("policy.json")
+  let metadata_count = 1 +
+    (if captured { 1 } else { 0 }) +
+    (if has_rules { 1 } else { 0 })
   guard names.length() == projects.length() + metadata_count &&
     names.all(name => {
       name == "report.json" ||
       name == "manifest.json" ||
+      name == "policy.json" ||
       projects.any(p => p.0 == name)
     }) else {
     raise WorkspaceError("Batch contains missing or unreported entries")
   }
+  let policy_ids = []
   if captured {
     let entries = parse_git_batch(
       @utf8.decode(read_bytes(destination + "/manifest.json"), ignore_bom=false),
@@ -109,6 +114,23 @@ pub async fn verify_git_batch(destination : String) -> Unit {
         "Report revision differs from the batch manifest or project set",
       )
     }
+    for entry in entries {
+      if entry.policy_path is Some(_) {
+        policy_ids.push(entry.id)
+      }
+    }
+  }
+  let common_policy = if has_rules {
+    let value = @json.parse(
+      @utf8.decode(read_bytes(destination + "/policy.json"), ignore_bom=false),
+    )
+    match value {
+      Array([String("moongraft.batch-policy.v1"), Null]) => None
+      Array([String("moongraft.batch-policy.v1"), String(text)]) => Some(text)
+      _ => raise WorkspaceError("Invalid captured batch policy")
+    }
+  } else {
+    None
   }
   for (id, revision) in projects {
     try {
@@ -116,8 +138,12 @@ pub async fn verify_git_batch(destination : String) -> Unit {
       require_directory(directory)
       let names = @fs.readdir(directory, include_hidden=true)
       let has_source = names.contains("source.json")
-      let expected_count = if has_source { 3 } else { 2 }
+      let has_policy = names.contains("policy.json")
+      let expected_count = 2 +
+        (if has_source { 1 } else { 0 }) +
+        (if has_policy { 1 } else { 0 })
       guard (!captured || has_source) &&
+        (!has_rules || !policy_ids.contains(id) || has_policy) &&
         names.length() == expected_count &&
         names.contains("plan.json") &&
         names.contains("candidate") else {
@@ -135,6 +161,20 @@ pub async fn verify_git_batch(destination : String) -> Unit {
         raise WorkspaceError("Candidate baseline differs from the plan")
       }
       let original = plan.rollback(scan(candidate + "/project"))
+      if common_policy is Some(text) {
+        ignore(plan.prepare(original.tree, text))
+      }
+      if has_policy {
+        ignore(
+          plan.prepare(
+            original.tree,
+            @utf8.decode(
+              read_bytes(directory + "/policy.json"),
+              ignore_bom=false,
+            ),
+          ),
+        )
+      }
       if has_source {
         let source = GitSource::decode(read_text(directory + "/source.json"))
         guard original.baseline == source.baseline else {
