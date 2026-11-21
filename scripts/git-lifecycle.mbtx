@@ -338,6 +338,85 @@ async fn main {
     !@fs.exists(invalid_output + "/z-ready/candidate") else {
     fail("Malformed policy allowed a candidate export")
   }
+  let individual_manifest = root + "/individual.json"
+  let open_policy = root + "/open-policy.json"
+  let protected_policy = root + "/protected-policy.json"
+  @fs.write_file(open_policy, "[\"moongraft.policy\",\"1\",[10,10,10000,[]]]")
+  @fs.write_file(
+    protected_policy, "[\"moongraft.policy\",\"1\",[10,10,10000,[\"settings.txt\"]]]",
+  )
+  @fs.write_file(
+    individual_manifest,
+    Json::array([
+      Json::string("moongraft.git-batch.v2"),
+      Json::array([
+        Json::array(
+          ["a-open", source, project, second, open_policy].map(Json::string),
+        ),
+        Json::array(
+          ["z-protected", source, project, second, protected_policy].map(
+            Json::string,
+          ),
+        ),
+      ]),
+    ]).stringify(),
+  )
+  let individual = root + "/individual"
+  let individual_report = cli([
+    "stage-git-batch", individual_manifest, individual,
+  ])
+  guard individual_report.contains("\"status\":\"ready\"") &&
+    individual_report.contains("\"status\":\"error\"") &&
+    !@fs.exists(individual + "/z-protected/candidate") else {
+    fail("Each project must enforce its own policy")
+  }
+  ignore(cli(["verify-export", individual + "/a-open/candidate"]))
+  ignore(
+    cli(
+      ["check-git-batch", individual + "/report.json"],
+      error="z-protected (error)",
+    ),
+  )
+  let combined = root + "/combined-policy"
+  ignore(
+    cli([
+      "stage-git-batch-checked", individual_manifest, protected_policy, combined,
+    ]),
+  )
+  ignore(
+    cli(
+      ["check-git-batch", combined + "/report.json"],
+      error="a-open (error), z-protected (error)",
+    ),
+  )
+  guard !@fs.exists(combined + "/a-open/candidate") else {
+    fail("Individual policy bypassed the common policy")
+  }
+  @fs.remove(open_policy)
+  let missing_policy = root + "/missing-policy"
+  ignore(cli(["stage-git-batch", individual_manifest, missing_policy]))
+  ignore(
+    cli(
+      ["check-git-batch", missing_policy + "/report.json"],
+      error="a-open (error)",
+    ),
+  )
+  guard !@fs.exists(missing_policy + "/a-open/candidate") else {
+    fail("Missing individual policy allowed export")
+  }
+  @fs.write_file(
+    individual_manifest,
+    Json::array([Json::string("moongraft.git-batch.v2"), Json::array([jobs[0]])]).stringify(),
+  )
+  ignore(
+    cli(
+      ["stage-git-batch", individual_manifest, root + "/invalid-v2"],
+      error="does not match its manifest version",
+    ),
+  )
+  guard !@fs.exists(root + "/invalid-v2") else {
+    fail("Malformed v2 created an output directory")
+  }
   let repeat = cli(["stage-git-batch", batch_manifest, root + "/repeat"])
   guard batch_report == repeat else {
     fail("Expected deterministic batch reports")

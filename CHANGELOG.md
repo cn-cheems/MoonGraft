@@ -10,6 +10,8 @@
   candidates, resumable review plans and a machine-readable status report.
 - Strict batch-report CI gate and policy-checked batch preparation that
   isolates project failures and retains rejected plans for review.
+- Verified local source relocation, read-only whole-batch verification, and
+  version 2 manifests with per-project policies enforced alongside common rules.
 - Historical template adoption case with a disclosed compatibility recipe,
   whole-output checks, business regression tests and revision-bound CI evidence.
 

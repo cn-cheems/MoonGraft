@@ -123,6 +123,19 @@ moon run cmd/main -- plan-git source-v2.json candidate-v2/project <commit-v3> pl
 再运行 `check-git-batch checked-output/report.json` 检查状态。
 库接口为 `stage_git_batch(manifest, output, policy=policy_text)`。
 
+项目需要不同规则时，使用版本 2 清单，每行增加一个必填的策略文件路径。
+
+```json
+["moongraft.git-batch.v2", [
+  ["api", "api-source.json", "work/api", "<commit-sha>", "api-policy.json"],
+  ["worker", "worker-source.json", "work/worker", "<commit-sha>", "worker-policy.json"]
+]]
+```
+
+版本 2 也使用 `stage-git-batch`。若使用 `stage-git-batch-checked`，公共策略与逐项目策略必须同时通过。
+策略文件缺失或格式异常会将对应项目标为 `error`，保留该项目的计划。
+所有相对路径仍以 CLI 工作目录为准。
+
 ## 实际目录升级
 
 `template-v1` 和 `template-v2` 是使用相应版本与项目变量渲染好的模板目录。基线、计划与导出目录放在当前项目之外。输出文件使用独占创建，重复执行时请换一个新名称。

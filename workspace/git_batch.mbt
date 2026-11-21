@@ -4,26 +4,50 @@ priv struct BatchEntry {
   source_path : String
   project : String
   revision : String
+  policy_path : String?
 }
 
 ///|
 fn parse_git_batch(manifest : String) -> Array[BatchEntry] raise {
-  guard @json.parse(manifest)
-    is Array([String("moongraft.git-batch.v1"), Array(rows)]) &&
+  guard @json.parse(manifest) is Array([String(version), Array(rows)]) &&
+    (version == "moongraft.git-batch.v1" || version == "moongraft.git-batch.v2") &&
     !rows.is_empty() &&
     rows.length() <= 16 else {
     raise WorkspaceError(
-      "Expected a moongraft.git-batch.v1 manifest with 1–16 entries",
+      "Expected a moongraft.git-batch.v1 or v2 manifest with 1–16 entries",
     )
   }
   let ids : Map[String, Bool] = Map([])
   let entries = []
   for row in rows {
-    guard row
-      is Array(
-        [String(id), String(source_path), String(project), String(revision)]
-      ) &&
-      !id.is_empty() &&
+    let (id, source_path, project, revision, policy_path) = match
+      (version, row) {
+      (
+        "moongraft.git-batch.v1",
+        Array([String(id), String(source), String(project), String(revision)]),
+      ) => (id, source, project, revision, None)
+      (
+        "moongraft.git-batch.v2",
+        Array(
+          [
+            String(id),
+            String(source),
+            String(project),
+            String(revision),
+            String(policy_path),
+          ]
+        ),
+      ) => {
+        guard !policy_path.is_empty() else {
+          raise WorkspaceError(
+            "Version 2 requires a policy file for every project",
+          )
+        }
+        (id, source, project, revision, Some(policy_path))
+      }
+      _ => raise WorkspaceError("Batch row does not match its manifest version")
+    }
+    guard !id.is_empty() &&
       id.length() <= 64 &&
       id
       .iter()
@@ -39,7 +63,7 @@ fn parse_git_batch(manifest : String) -> Array[BatchEntry] raise {
     }
     ignore(@graft.File::new(id + "/plan.json", b""))
     ids[id] = true
-    entries.push({ id, source_path, project, revision, })
+    entries.push({ id, source_path, project, revision, policy_path, })
   }
   entries.sort_by((a, b) => a.id.lexical_compare(b.id))
   entries
@@ -92,6 +116,10 @@ async fn stage_git_entry(
   let applied = match policy {
     Some(text) => plan.prepare(latest, text)
     None => plan.apply(latest)
+  }
+  if entry.policy_path is Some(path) {
+    let text = @utf8.decode(read_bytes(path), ignore_bom=false)
+    ignore(plan.prepare(latest, text))
   }
   export_result(applied, directory + "/candidate")
   make_batch_report(entry, "ready", Json::array([]))
