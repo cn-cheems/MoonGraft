@@ -28,6 +28,8 @@ pub async fn stage_git_batch(String, String, policy? : String) -> Json
 
 pub async fn verify_export(String) -> Unit
 
+pub async fn verify_git_batch(String) -> Unit
+
 pub async fn write_new(String, String) -> Unit
 
 // Errors

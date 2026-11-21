@@ -244,6 +244,35 @@ async fn main {
     cli(["stage-git-batch", root + "/ready-only.json", root + "/ready-only"]),
   )
   ignore(cli(["check-git-batch", root + "/ready-only/report.json"]))
+  let ready_directory = root + "/ready-only"
+  ignore(cli(["verify-git-batch", ready_directory]))
+  let ready_settings = ready_directory +
+    "/z-ready/candidate/project/settings.txt"
+  @fs.write_file(ready_settings, "unreviewed edit\n")
+  ignore(
+    cli(["verify-git-batch", ready_directory], error="Batch project z-ready"),
+  )
+  guard @fs.read_file(ready_settings).binary() == b"unreviewed edit\n" else {
+    fail("Read-only batch verification modified a candidate")
+  }
+  @fs.write_file(ready_settings, "version=2\n")
+  let ready_report = @fs.read_file(ready_directory + "/report.json").text()
+  @fs.write_file(
+    ready_directory + "/report.json",
+    ready_report.replace_all(old=second, new=first),
+  )
+  ignore(
+    cli(["verify-git-batch", ready_directory], error="Report revision differs"),
+  )
+  @fs.write_file(ready_directory + "/report.json", ready_report)
+  @fs.write_file(ready_directory + "/unexpected.txt", "maintainer file")
+  ignore(cli(["verify-git-batch", ready_directory], error="unreported entries"))
+  guard @fs.read_file(ready_directory + "/unexpected.txt").binary() ==
+    b"maintainer file" else {
+    fail("Batch verification modified an unreported file")
+  }
+  @fs.remove(ready_directory + "/unexpected.txt")
+  ignore(cli(["verify-git-batch", ready_directory]))
   let protected_manifest = root + "/protected-batch.json"
   let policy = root + "/policy.json"
   @fs.write_file(

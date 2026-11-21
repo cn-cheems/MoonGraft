@@ -3,6 +3,11 @@
 /// This checks preparation status. Verify candidate bundles and run project
 /// tests separately before acceptance.
 pub fn check_git_batch_report(text : String) -> Unit raise {
+  ignore(ready_git_batch_projects(text))
+}
+
+///|
+fn ready_git_batch_projects(text : String) -> Array[(String, String)] raise {
   guard text.length() <= 2097152 else {
     raise WorkspaceError("Batch report exceeds 2 MiB")
   }
@@ -18,6 +23,7 @@ pub fn check_git_batch_report(text : String) -> Unit raise {
   }
   let ids : Map[String, Bool] = Map([])
   let blocked = []
+  let projects = []
   for row in rows {
     guard row is Object(fields) &&
       fields.length() == 4 &&
@@ -35,6 +41,7 @@ pub fn check_git_batch_report(text : String) -> Unit raise {
     }
     ignore(@graft.File::new(id + "/plan.json", b""))
     ids[id] = true
+    projects.push((id, revision))
     match (status, detail) {
       ("ready", Array([])) => require_git_sha(revision)
       ("conflicts", Array(paths)) => {
@@ -67,5 +74,50 @@ pub fn check_git_batch_report(text : String) -> Unit raise {
   blocked.sort_by((a, b) => a.lexical_compare(b))
   guard blocked.is_empty() else {
     raise WorkspaceError("Batch preparation blocked: " + blocked.join(", "))
+  }
+  projects
+}
+
+///|
+/// Verify a wholly ready batch read-only, including its plans, revisions,
+/// candidate bytes, export metadata and absence of unreported entries.
+pub async fn verify_git_batch(destination : String) -> Unit {
+  require_directory(destination)
+  let text = @utf8.decode(
+    read_bytes(destination + "/report.json"),
+    ignore_bom=false,
+  )
+  let projects = ready_git_batch_projects(text)
+  let names = @fs.readdir(destination, include_hidden=true)
+  guard names.length() == projects.length() + 1 &&
+    names.all(name => name == "report.json" || projects.any(p => p.0 == name)) else {
+    raise WorkspaceError("Batch contains missing or unreported entries")
+  }
+  for (id, revision) in projects {
+    try {
+      let directory = destination + "/" + id
+      require_directory(directory)
+      let names = @fs.readdir(directory, include_hidden=true)
+      guard names.length() == 2 &&
+        names.contains("plan.json") &&
+        names.contains("candidate") else {
+        raise WorkspaceError("Expected a plan and a complete candidate")
+      }
+      let plan = @graft.Plan::decode(read_text(directory + "/plan.json"))
+      let next = plan.next_baseline()
+      guard next.revision == revision else {
+        raise WorkspaceError("Report revision differs from the plan")
+      }
+      let candidate = directory + "/candidate"
+      verify_export(candidate)
+      guard @graft.Baseline::decode(read_text(candidate + "/baseline.json")) ==
+        next else {
+        raise WorkspaceError("Candidate baseline differs from the plan")
+      }
+      ignore(plan.rollback(scan(candidate + "/project")))
+    } catch {
+      error =>
+        raise WorkspaceError("Batch project " + id + ": " + batch_error(error))
+    }
   }
 }

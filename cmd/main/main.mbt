@@ -13,6 +13,7 @@ let usage : String =
   #|stage-git-batch <manifest.json> <new-output-dir>
   #|stage-git-batch-checked <manifest.json> <policy.json> <new-output-dir>
   #|check-git-batch <report.json>
+  #|verify-git-batch <batch-output-dir>
   #|track <template-id> <revision> <rendered-template-dir> <new-baseline.json>
   #|plan <baseline.json> <project-dir> <new-revision> <new-template-dir> <new-plan.json>
   #|review <plan.json>
@@ -147,6 +148,10 @@ async fn run(args : Array[String]) -> Unit {
       println(
         "Recorded accepted template revision: " + target.baseline.revision,
       )
+    }
+    ["verify-git-batch", output] => {
+      @workspace.verify_git_batch(output)
+      println("All batch candidates match their plans and recorded revisions")
     }
     ["check-git-batch", report] => {
       let text = @utf8.decode(@workspace.read_bytes(report), ignore_bom=false)
