@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub async fn accept_git_batch(String, String) -> Json
+
 pub async fn capture_git_source(String, String, String) -> GitSource
 
 pub fn check_git_batch_report(String) -> Unit raise

@@ -255,6 +255,15 @@ async fn main {
     "/z-ready/candidate/project/settings.txt"
   @fs.write_file(ready_settings, "unreviewed edit\n")
   ignore(
+    cli(
+      ["accept-git-batch", ready_directory, root + "/blocked-acceptance"],
+      error="Batch project z-ready",
+    ),
+  )
+  guard !@fs.exists(root + "/blocked-acceptance") else {
+    fail("Failed batch acceptance created its output directory")
+  }
+  ignore(
     cli(["verify-git-batch", ready_directory], error="Batch project z-ready"),
   )
   guard @fs.read_file(ready_settings).binary() == b"unreviewed edit\n" else {
@@ -527,6 +536,50 @@ async fn main {
   )
   let captured_v2 = root + "/capture-v2.json"
   ignore(cli(["capture-git", repository, second, "service", captured_v2]))
+  let batch_records = root + "/accepted-records"
+  let live_source = @fs.read_file(source).binary()
+  @fs.write_file(source, "external source record changed")
+  ignore(cli(["accept-git-batch", individual_ready, batch_records]))
+  @fs.write_file(source, live_source)
+  for id in ["a-open", "z-protected"] {
+    guard @fs.read_file(batch_records + "/" + id + ".json").binary() ==
+      @fs.read_file(captured_v2).binary() else {
+      fail("Batch acceptance must advance every captured template baseline")
+    }
+  }
+  guard @fs.exists(batch_records + "/acceptance.json") &&
+    @fs.read_file(ready_directory + "/z-ready/source.json").binary() == original else {
+    fail(
+      "Acceptance did not preserve captured provenance or issue its final marker",
+    )
+  }
+  ignore(
+    cli(
+      ["accept-git-batch", individual_ready, batch_records],
+      error="accepted-records",
+    ),
+  )
+  let original_candidate = @fs.read_file(
+    individual_ready + "/z-protected/candidate/project/settings.txt",
+  ).binary()
+  @fs.write_file(
+    individual_ready + "/z-protected/candidate/project/settings.txt",
+    "changed after review\n",
+  )
+  ignore(
+    cli(
+      ["accept-git-batch", individual_ready, root + "/partially-invalid"],
+      error="Batch project z-protected",
+    ),
+  )
+  guard !@fs.exists(root + "/partially-invalid") else {
+    fail("Acceptance wrote records before validating every candidate")
+  }
+  @fs.write_file(
+    individual_ready + "/z-protected/candidate/project/settings.txt",
+    original_candidate,
+  )
+  ignore(cli(["accept-git-batch", individual_ready, root + "/accepted-retry"]))
   let batch_accepted = root + "/batch-source-v2.json"
   ignore(
     cli([
