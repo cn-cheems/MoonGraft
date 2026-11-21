@@ -12,6 +12,8 @@
   isolates project failures and retains rejected plans for review.
 - Verified local source relocation, read-only whole-batch verification, and
   version 2 manifests with per-project policies enforced alongside common rules.
+- Captured batch inputs and policy evidence, all-candidate acceptance into new
+  source records, and retry manifests preserving failed projects' pinned inputs.
 - Historical template adoption case with a disclosed compatibility recipe,
   whole-output checks, business regression tests and revision-bound CI evidence.
 

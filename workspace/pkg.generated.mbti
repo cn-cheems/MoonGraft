@@ -24,6 +24,8 @@ pub async fn require_outside(String, String) -> Unit
 
 pub async fn resume_export(String) -> Unit
 
+pub fn retry_git_batch_manifest(String, String) -> String? raise
+
 pub async fn scan(String) -> @moongraft.Tree
 
 pub async fn stage_git_batch(String, String, policy? : String) -> Json

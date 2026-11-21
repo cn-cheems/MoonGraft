@@ -15,6 +15,7 @@ let usage : String =
   #|check-git-batch <report.json>
   #|verify-git-batch <batch-output-dir>
   #|accept-git-batch <verified-batch-dir> <new-source-records-dir>
+  #|retry-git-batch <original-manifest.json> <report.json> <new-retry-manifest.json>
   #|track <template-id> <revision> <rendered-template-dir> <new-baseline.json>
   #|plan <baseline.json> <project-dir> <new-revision> <new-template-dir> <new-plan.json>
   #|review <plan.json>
@@ -149,6 +150,23 @@ async fn run(args : Array[String]) -> Unit {
       println(
         "Recorded accepted template revision: " + target.baseline.revision,
       )
+    }
+    ["retry-git-batch", manifest, report, output] => {
+      let input = @utf8.decode(
+        @workspace.read_bytes(manifest),
+        ignore_bom=false,
+      )
+      let statuses = @utf8.decode(
+        @workspace.read_bytes(report),
+        ignore_bom=false,
+      )
+      match @workspace.retry_git_batch_manifest(input, statuses) {
+        Some(text) => {
+          @workspace.write_new(output, text)
+          println("Recorded retry manifest: " + output)
+        }
+        None => println("All projects are ready; no retry manifest needed")
+      }
     }
     ["accept-git-batch", batch, output] =>
       println(@workspace.accept_git_batch(batch, output).stringify())

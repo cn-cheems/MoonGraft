@@ -7,7 +7,14 @@ pub fn check_git_batch_report(text : String) -> Unit raise {
 }
 
 ///|
-fn ready_git_batch_projects(text : String) -> Array[(String, String)] raise {
+priv struct BatchReportEntry {
+  id : String
+  revision : String
+  status : String
+}
+
+///|
+fn parse_git_batch_report(text : String) -> Array[BatchReportEntry] raise {
   guard text.length() <= 2097152 else {
     raise WorkspaceError("Batch report exceeds 2 MiB")
   }
@@ -22,7 +29,6 @@ fn ready_git_batch_projects(text : String) -> Array[(String, String)] raise {
     )
   }
   let ids : Map[String, Bool] = Map([])
-  let blocked = []
   let projects = []
   for row in rows {
     guard row is Object(fields) &&
@@ -41,7 +47,7 @@ fn ready_git_batch_projects(text : String) -> Array[(String, String)] raise {
     }
     ignore(@graft.File::new(id + "/plan.json", b""))
     ids[id] = true
-    projects.push((id, revision))
+    projects.push({ id, revision, status, })
     match (status, detail) {
       ("ready", Array([])) => require_git_sha(revision)
       ("conflicts", Array(paths)) => {
@@ -55,7 +61,6 @@ fn ready_git_batch_projects(text : String) -> Array[(String, String)] raise {
           }
           ignore(@graft.File::new(path, b""))
         }
-        blocked.push(id + " (conflicts)")
       }
       ("error", String(message)) => {
         guard !message.is_empty() else {
@@ -63,7 +68,6 @@ fn ready_git_batch_projects(text : String) -> Array[(String, String)] raise {
             "Expected an error diagnostic for project: " + id,
           )
         }
-        blocked.push(id + " (error)")
       }
       _ =>
         raise WorkspaceError(
@@ -71,11 +75,20 @@ fn ready_git_batch_projects(text : String) -> Array[(String, String)] raise {
         )
     }
   }
+  projects
+}
+
+///|
+fn ready_git_batch_projects(text : String) -> Array[(String, String)] raise {
+  let projects = parse_git_batch_report(text)
+  let blocked = projects
+    .filter(project => project.status != "ready")
+    .map(project => project.id + " (" + project.status + ")")
   blocked.sort_by((a, b) => a.lexical_compare(b))
   guard blocked.is_empty() else {
     raise WorkspaceError("Batch preparation blocked: " + blocked.join(", "))
   }
-  projects
+  projects.map(project => (project.id, project.revision))
 }
 
 ///|

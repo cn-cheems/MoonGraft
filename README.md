@@ -144,6 +144,15 @@ moon run cmd/main -- plan-git source-v2.json candidate-v2/project <commit-v3> pl
 策略文件缺失或格式异常会将对应项目标为 `error`，保留该项目的计划。
 所有相对路径仍以 CLI 工作目录为准。
 
+## 重试未完成的项目
+
+运行 `moon run cmd/main -- retry-git-batch output/manifest.json output/report.json retry.json`，
+可以提取状态为 `conflicts` 或 `error` 的项目，保留其来源路径、项目路径、目标提交和逐项目策略配置。
+工具先检查报告与原清单的项目 ID 及目标版本对应。全部就绪时只输出提示，不创建空清单。
+修复输入或协调项目后，将 `retry.json` 交给 `stage-git-batch`，输出到新的目录。
+原批次使用公共策略时，重试仍须通过 `stage-git-batch-checked` 显式传入公共策略。
+相对路径仍以当前工作目录解释；重试清单保留原来的路径文本。
+
 ## 整批验收
 
 在各候选目录运行项目自身的构建和业务测试后，执行

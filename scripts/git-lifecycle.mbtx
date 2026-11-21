@@ -467,6 +467,23 @@ async fn main {
   guard !@fs.exists(missing_policy + "/a-open/candidate") else {
     fail("Missing individual policy allowed export")
   }
+  let individual_retry = root + "/retry-individual.json"
+  ignore(
+    cli([
+      "retry-git-batch",
+      individual + "/manifest.json",
+      individual + "/report.json",
+      individual_retry,
+    ]),
+  )
+  let individual_retry_text = @fs.read_file(individual_retry).text()
+  guard individual_retry_text.contains("moongraft.git-batch.v2") &&
+    individual_retry_text.contains(Json::string(protected_policy).stringify()) &&
+    !individual_retry_text.contains("a-open") else {
+    fail("Retry lost the individual policy or included a ready project")
+  }
+  ignore(cli(["stage-git-batch", individual_retry, root + "/retry-individual"]))
+  ignore(cli(["verify-git-batch", root + "/retry-individual"]))
   @fs.write_file(
     individual_manifest,
     Json::array([Json::string("moongraft.git-batch.v2"), Json::array([jobs[0]])]).stringify(),
@@ -480,6 +497,39 @@ async fn main {
   guard !@fs.exists(root + "/invalid-v2") else {
     fail("Malformed v2 created an output directory")
   }
+  let retry_manifest = root + "/retry-manifest.json"
+  ignore(
+    cli([
+      "retry-git-batch",
+      batch_manifest,
+      batch + "/report.json",
+      retry_manifest,
+    ]),
+  )
+  let retry_text = @fs.read_file(retry_manifest).text()
+  guard retry_text.contains("a-conflict") &&
+    retry_text.contains("bad-sha") &&
+    !retry_text.contains("z-ready") &&
+    retry_text.contains("HEAD") else {
+    fail("Retry must preserve failed inputs and exclude ready projects")
+  }
+  @fs.write_file(retry_manifest, retry_text.replace_all(old="HEAD", new=second))
+  @fs.write_file(existing + "/settings.txt", "version=1\n")
+  ignore(cli(["stage-git-batch", retry_manifest, root + "/retry-output"]))
+  ignore(cli(["verify-git-batch", root + "/retry-output"]))
+  let no_retry = root + "/unnecessary-retry.json"
+  ignore(
+    cli([
+      "retry-git-batch",
+      retry_manifest,
+      root + "/retry-output/report.json",
+      no_retry,
+    ]),
+  )
+  guard !@fs.exists(no_retry) else {
+    fail("All-ready batch generated an empty retry manifest")
+  }
+  @fs.write_file(existing + "/settings.txt", "version=team\n")
   let repeat = cli(["stage-git-batch", batch_manifest, root + "/repeat"])
   guard batch_report == repeat else {
     fail("Expected deterministic batch reports")
