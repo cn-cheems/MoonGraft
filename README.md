@@ -102,6 +102,10 @@ moon run cmd/main -- plan-git source-v2.json candidate-v2/project <commit-v3> pl
 
 一批支持 1–16 个项目。输出目录须是新目录，且位于各项目及模板仓库之外。每个项目独立生成计划及候选，`report.json` 按项目 ID 排序，分别标记 `ready`、`conflicts` 或 `error`。冲突项目保留可用现有命令处理的计划。批次退出码 0 表示报告成功生成，CI 可根据报告中的各项目状态设置门禁。采用候选时逐个核验，并用 `accept-git` 保存该项目的新来源记录。
 
+批量准备完成后，可在 CI 运行 `moon run cmd/main -- check-git-batch output/report.json`。
+报告中全部项目为 `ready` 时退出码为 0，存在冲突、错误或格式异常时退出失败并给出项目 ID。
+这一步检查准备状态，采用前仍需核验候选目录并运行目标项目测试。
+
 ## 实际目录升级
 
 `template-v1` 和 `template-v2` 是使用相应版本与项目变量渲染好的模板目录。基线、计划与导出目录放在当前项目之外。输出文件使用独占创建，重复执行时请换一个新名称。

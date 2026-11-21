@@ -8,6 +8,8 @@ import {
 // Values
 pub async fn capture_git_source(String, String, String) -> GitSource
 
+pub fn check_git_batch_report(String) -> Unit raise
+
 pub async fn export_result(@moongraft.Applied, String) -> Unit
 
 pub async fn read_bytes(String, limit? : Int32) -> Bytes

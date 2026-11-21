@@ -230,6 +230,20 @@ async fn main {
     )
   }
   ignore(cli(["verify-export", batch + "/z-ready/candidate"]))
+  ignore(
+    cli(
+      ["check-git-batch", batch + "/report.json"],
+      error="a-conflict (conflicts), bad-sha (error)",
+    ),
+  )
+  @fs.write_file(
+    root + "/ready-only.json",
+    Json::array([Json::string("moongraft.git-batch.v1"), Json::array([jobs[0]])]).stringify(),
+  )
+  ignore(
+    cli(["stage-git-batch", root + "/ready-only.json", root + "/ready-only"]),
+  )
+  ignore(cli(["check-git-batch", root + "/ready-only/report.json"]))
   let repeat = cli(["stage-git-batch", batch_manifest, root + "/repeat"])
   guard batch_report == repeat else {
     fail("Expected deterministic batch reports")
