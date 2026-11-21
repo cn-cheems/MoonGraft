@@ -116,6 +116,10 @@ moon run cmd/main -- plan-git source-v2.json candidate-v2/project <commit-v3> pl
 它检查报告与计划的目标版本、候选与计划的逐文件一致性、基线及完成标记，并拒绝未列入报告的目录或文件。
 失败时保留现场。通过后继续运行各目标项目的构建与业务测试。
 
+新批次还保存原始 `manifest.json` 和每个已规划项目的 `source.json`，以便复核固定版本和旧模板基线。
+`verify-git-batch` 会核对这些快照与报告、计划的一致性；也支持历史版本生成的无快照批次。
+快照包含文件内容和本地路径，分享批次前按项目数据管理要求检查。
+
 需要对整批应用同一套删除预算、二进制变更预算、增长预算和路径保护时，使用
 `moon run cmd/main -- stage-git-batch-checked batch.json policy.json checked-output`。
 策略文件与单项目 `export-checked` 相同。每个无冲突计划在创建候选前独立检查策略，

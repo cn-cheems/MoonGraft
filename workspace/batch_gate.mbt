@@ -89,16 +89,36 @@ pub async fn verify_git_batch(destination : String) -> Unit {
   )
   let projects = ready_git_batch_projects(text)
   let names = @fs.readdir(destination, include_hidden=true)
-  guard names.length() == projects.length() + 1 &&
-    names.all(name => name == "report.json" || projects.any(p => p.0 == name)) else {
+  let captured = names.contains("manifest.json")
+  let metadata_count = if captured { 2 } else { 1 }
+  guard names.length() == projects.length() + metadata_count &&
+    names.all(name => {
+      name == "report.json" ||
+      name == "manifest.json" ||
+      projects.any(p => p.0 == name)
+    }) else {
     raise WorkspaceError("Batch contains missing or unreported entries")
+  }
+  if captured {
+    let entries = parse_git_batch(
+      @utf8.decode(read_bytes(destination + "/manifest.json"), ignore_bom=false),
+    )
+    guard entries.length() == projects.length() &&
+      entries.all(entry => projects.contains((entry.id, entry.revision))) else {
+      raise WorkspaceError(
+        "Report revision differs from the batch manifest or project set",
+      )
+    }
   }
   for (id, revision) in projects {
     try {
       let directory = destination + "/" + id
       require_directory(directory)
       let names = @fs.readdir(directory, include_hidden=true)
-      guard names.length() == 2 &&
+      let has_source = names.contains("source.json")
+      let expected_count = if has_source { 3 } else { 2 }
+      guard (!captured || has_source) &&
+        names.length() == expected_count &&
         names.contains("plan.json") &&
         names.contains("candidate") else {
         raise WorkspaceError("Expected a plan and a complete candidate")
@@ -114,7 +134,13 @@ pub async fn verify_git_batch(destination : String) -> Unit {
         next else {
         raise WorkspaceError("Candidate baseline differs from the plan")
       }
-      ignore(plan.rollback(scan(candidate + "/project")))
+      let original = plan.rollback(scan(candidate + "/project"))
+      if has_source {
+        let source = GitSource::decode(read_text(directory + "/source.json"))
+        guard original.baseline == source.baseline else {
+          raise WorkspaceError("Captured source differs from the plan baseline")
+        }
+      }
     } catch {
       error =>
         raise WorkspaceError("Batch project " + id + ": " + batch_error(error))

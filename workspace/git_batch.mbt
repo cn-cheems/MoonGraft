@@ -103,6 +103,7 @@ async fn stage_git_entry(
   let plan = source.plan_upgrade(current, entry.revision)
   let directory = destination + "/" + entry.id
   @fs.mkdir(directory)
+  write_new(directory + "/source.json", source.encode())
   write_new(directory + "/plan.json", plan.encode())
   let conflicts = plan.unresolved()
   if !conflicts.is_empty() {
@@ -149,6 +150,7 @@ pub async fn stage_git_batch(
     }
   }
   @fs.mkdir(destination)
+  write_new(destination + "/manifest.json", manifest)
   let results = []
   for entry in entries {
     let result = try {
