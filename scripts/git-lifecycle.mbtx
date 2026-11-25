@@ -664,6 +664,72 @@ async fn main {
     b"team feature\n" else {
     fail("Second upgrade did not apply the new baseline")
   }
+  let move_input = next_bundle + "/project"
+  let third_source = root + "/third-source.json"
+  ignore(cli(["accept-git", advanced, next, move_input, third_source]))
+  @fs.write_file(move_input + "/settings.txt", "local settings\n")
+  @fs.mkdir(repository + "/service/config")
+  ignore(
+    git(repository, [
+      "mv", "service/settings.txt", "service/config/settings.txt",
+    ]),
+  )
+  @fs.write_file(repository + "/service/config/settings.txt", "version=2\n")
+  let fourth = commit(repository, "Move settings into config")
+  let moves = root + "/renames.json"
+  @fs.write_file(
+    moves, "[\"moongraft.renames\",\"1\",[[\"settings.txt\",\"config/settings.txt\"]]]",
+  )
+  let move_plan = root + "/move-plan.json"
+  let move_report = cli([
+    "plan-git-renames", third_source, move_input, fourth, moves, move_plan,
+  ])
+  guard move_report.contains("move\tsettings.txt\tconfig/settings.txt") &&
+    move_report.contains("Unresolved: 0") else {
+    fail("The plan did not report the mapped Git move")
+  }
+  let move_bundle = root + "/move-candidate"
+  let rendered_plan = root + "/rendered-move-plan.json"
+  ignore(
+    cli([
+      "plan-renames",
+      next_bundle + "/baseline.json",
+      move_input,
+      fourth,
+      repository + "/service",
+      moves,
+      rendered_plan,
+    ]),
+  )
+  guard @fs.read_file(rendered_plan).binary() ==
+    @fs.read_file(move_plan).binary() else {
+    fail("Git and rendered-directory inputs produced different move plans")
+  }
+  ignore(cli(["export", move_plan, move_input, move_bundle]))
+  ignore(cli(["verify-export", move_bundle]))
+  let moved = move_bundle + "/project"
+  guard !@fs.exists(moved + "/settings.txt") &&
+    @fs.read_file(moved + "/config/settings.txt").binary() ==
+    b"local settings\n" &&
+    @fs.read_file(moved + "/business.txt").binary() == b"team feature\n" else {
+    fail("The moved candidate lost project customizations")
+  }
+  let fourth_source = root + "/fourth-source.json"
+  ignore(cli(["accept-git", third_source, move_plan, moved, fourth_source]))
+  guard cli(["check-git", fourth_source, fourth]).contains("Already recorded") else {
+    fail(
+      "Git acceptance did not advance to the unmodified new template baseline",
+    )
+  }
+  let undo_move = root + "/undo-move"
+  ignore(cli(["rollback-export", move_plan, moved, undo_move]))
+  guard @fs.read_file(undo_move + "/project/settings.txt").binary() ==
+    b"local settings\n" &&
+    !@fs.exists(undo_move + "/project/config/settings.txt") &&
+    @fs.read_file(undo_move + "/baseline.json").binary() ==
+    @fs.read_file(next_bundle + "/baseline.json").binary() else {
+    fail("Rollback did not restore both the old path and old baseline")
+  }
   let cloned = root + "/template-copy"
   ignore(git(repository, ["clone", "--no-hardlinks", "--", repository, cloned]))
   @fs.rename(repository, root + "/template-original", replace=false)

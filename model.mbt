@@ -180,6 +180,7 @@ pub(all) enum ConflictReason {
   BothModified
   TemplateDeleted
   ProjectDeleted
+  RenameSourceDeleted
   TextMergeLimit
 } derive(Debug, Eq)
 
@@ -231,6 +232,9 @@ pub struct Plan {
   priv baseline : Baseline
   priv current : Tree
   priv next : Baseline
+  priv renames : Array[FileRename]
+  priv merge_base : Tree
+  priv merge_current : Tree
   priv changes : Array[Change]
   priv decisions : Array[Decision]
 } derive(Debug, Eq)
@@ -238,6 +242,11 @@ pub struct Plan {
 ///|
 pub fn Plan::changes(self : Plan) -> Array[Change] {
   self.changes.copy()
+}
+
+///|
+pub fn Plan::renames(self : Plan) -> Array[FileRename] {
+  self.renames.copy()
 }
 
 ///|

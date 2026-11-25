@@ -63,10 +63,17 @@ the recorded tree before producing output. Deletions and binary changes are
 always explicit. Serialized inputs reject unknown fields/tags and unsupported
 versions. Resource bounds fail closed, with actionable diagnostics.
 
+Explicit file moves align the old and local file at the destination before
+comparison. Declared moves require one-to-one paths across the two template
+snapshots. Local destination occupancy and structural collisions stop planning.
+Conflicts and decisions use the destination path, while conflict details retain
+the original paths. Freshness checks and rollback use the original project
+snapshot. Policy checks use the actual output paths.
+
 ## Roadmap
 
 1. Complete local baseline → plan → resolve → export → next-baseline workflow.
-2. Explicit rename mappings and richer review output, preserving current rules.
+2. Extend review output for structural changes and explicit moves.
 3. Extend the implemented local Git source with pinned generator adapters,
    replayable parameters, and remote version discovery.
 4. Batch repository upgrades and CI integration, with measured behavior on real

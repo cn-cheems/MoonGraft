@@ -14,16 +14,19 @@ pub fn Plan::report_json(self : Plan) -> String {
       },
     ])
   })
-  Json::array([
+  let fields = [
     Json::string("moongraft.report"),
-    Json::string("1"),
+    Json::string(if self.renames.is_empty() { "1" } else { "2" }),
     Json::string(self.baseline.template_id),
     Json::string(self.baseline.revision),
     Json::string(self.next.revision),
     Json::array(rows),
     Json::array(self.unresolved().map(Json::string)),
-  ]).stringify() +
-  "\n"
+  ]
+  if !self.renames.is_empty() {
+    fields.push(rename_rows(self.renames))
+  }
+  Json::array(fields).stringify() + "\n"
 }
 
 ///|
@@ -37,6 +40,7 @@ fn kind_name(kind : ChangeKind) -> String {
     Conflict(BothModified) => "conflict:modify/modify"
     Conflict(TemplateDeleted) => "conflict:template-deleted/project-modified"
     Conflict(ProjectDeleted) => "conflict:project-deleted/template-modified"
+    Conflict(RenameSourceDeleted) => "conflict:project-deleted/template-moved"
     Conflict(TextMergeLimit) => "conflict:text-merge-limit"
   }
 }
@@ -50,6 +54,11 @@ pub fn Plan::report(self : Plan) -> String {
   output.write_string(
     "Revision: " + self.baseline.revision + " -> " + self.next.revision + "\n",
   )
+  for rename in self.renames {
+    output.write_string(
+      "move\t" + rename.from_path + "\t" + rename.to_path + "\n",
+    )
+  }
   for change in self.changes {
     output.write_string(kind_name(change.kind) + "\t" + change.path)
     for decision in self.decisions {

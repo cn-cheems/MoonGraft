@@ -14,6 +14,8 @@
   version 2 manifests with per-project policies enforced alongside common rules.
 - Captured batch inputs and policy evidence, all-candidate acceptance into new
   source records, and retry manifests preserving failed projects' pinned inputs.
+- Explicit file moves that carry local customizations across template paths and
+  preserve conflict review, policy checks, and exact rollback.
 - Historical template adoption case with a disclosed compatibility recipe,
   whole-output checks, business regression tests and revision-bound CI evidence.
 
@@ -31,5 +33,5 @@
   package consumer execution in the cross-OS CI workflow.
 
 This is a local-workflow alpha, not a Mooncakes release. Remote version discovery,
-rename mappings and parameterized generation remain
+and parameterized generation remain
 future work. See README for input limits and platform boundaries.

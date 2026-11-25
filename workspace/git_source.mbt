@@ -280,8 +280,24 @@ pub async fn GitSource::plan_upgrade(
   current : @graft.Tree,
   revision : String,
 ) -> @graft.Plan {
+  self.plan_upgrade_with_renames(current, revision, [])
+}
+
+///|
+/// Plan an upgrade against a pinned Git commit with explicit template moves.
+pub async fn GitSource::plan_upgrade_with_renames(
+  self : GitSource,
+  current : @graft.Tree,
+  revision : String,
+  renames : Array[@graft.FileRename],
+) -> @graft.Plan {
   let target = self.at(revision)
-  @graft.plan_update(self.baseline, current, target.baseline)
+  @graft.plan_update_with_renames(
+    self.baseline,
+    current,
+    target.baseline,
+    renames,
+  )
 }
 
 ///|

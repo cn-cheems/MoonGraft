@@ -9,6 +9,7 @@ let usage : String =
   #|discover-git <source.json>
   #|check-git <source.json> <target-commit-sha>
   #|plan-git <source.json> <project-dir> <target-commit-sha> <new-plan.json>
+  #|plan-git-renames <source.json> <project-dir> <target-commit-sha> <renames.json> <new-plan.json>
   #|accept-git <source.json> <resolved-plan.json> <accepted-project-dir> <new-source.json>
   #|stage-git-batch <manifest.json> <new-output-dir>
   #|stage-git-batch-checked <manifest.json> <policy.json> <new-output-dir>
@@ -18,6 +19,7 @@ let usage : String =
   #|retry-git-batch <original-manifest.json> <report.json> <new-retry-manifest.json>
   #|track <template-id> <revision> <rendered-template-dir> <new-baseline.json>
   #|plan <baseline.json> <project-dir> <new-revision> <new-template-dir> <new-plan.json>
+  #|plan-renames <baseline.json> <project-dir> <new-revision> <new-template-dir> <renames.json> <new-plan.json>
   #|review <plan.json>
   #|report-json <plan.json>
   #|preview-json <resolved-plan.json>
@@ -140,6 +142,21 @@ async fn run(args : Array[String]) -> Unit {
       @workspace.write_new(output, plan.encode())
       println(plan.report())
     }
+    ["plan-git-renames", input, project, revision, mappings, output] => {
+      @workspace.require_outside(output, project)
+      let source = @workspace.GitSource::decode(@workspace.read_text(input))
+      @workspace.require_outside(output, source.repository)
+      let renames = @graft.FileRename::decode_list(
+        @workspace.read_text(mappings),
+      )
+      let plan = source.plan_upgrade_with_renames(
+        @workspace.scan(project),
+        revision,
+        renames,
+      )
+      @workspace.write_new(output, plan.encode())
+      println(plan.report())
+    }
     ["accept-git", input, plan_path, project, output] => {
       @workspace.require_outside(output, project)
       let source = @workspace.GitSource::decode(@workspace.read_text(input))
@@ -203,6 +220,27 @@ async fn run(args : Array[String]) -> Unit {
         @workspace.scan(template),
       )
       let plan = @graft.plan_update(baseline, @workspace.scan(project), next)
+      @workspace.write_new(output, plan.encode())
+      println(plan.report())
+    }
+    ["plan-renames", input, project, revision, template, mappings, output] => {
+      @workspace.require_outside(output, project)
+      @workspace.require_outside(output, template)
+      let baseline = @graft.Baseline::decode(@workspace.read_text(input))
+      let next = @graft.track(
+        baseline.template_id,
+        revision,
+        @workspace.scan(template),
+      )
+      let renames = @graft.FileRename::decode_list(
+        @workspace.read_text(mappings),
+      )
+      let plan = @graft.plan_update_with_renames(
+        baseline,
+        @workspace.scan(project),
+        next,
+        renames,
+      )
       @workspace.write_new(output, plan.encode())
       println(plan.report())
     }

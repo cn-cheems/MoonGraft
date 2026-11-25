@@ -116,18 +116,25 @@ fn archive(tag : String, payload : Json) -> String {
 
 ///|
 fn open_archive(source : String, tag : String) -> Json raise GraftError {
-  guard source.length() <= 160000000 else {
-    raise LimitExceeded("archive exceeds 160 million UTF-16 units")
-  }
-  let value = @json.parse(source, max_nesting_depth=16) catch {
-    e => raise InvalidArchive("malformed JSON: " + e.to_string())
-  }
+  let value = parse_archive_json(source)
   guard value is Array([String(actual), String("1"), payload]) && actual == tag else {
     raise InvalidArchive(
-      "expected [\"\{tag}\", \"1\", payload]; unknown versions, fields and tags are rejected",
+      "expected [\"" +
+      tag +
+      "\", \"1\", payload]; unknown versions, fields and tags are rejected",
     )
   }
   payload
+}
+
+///|
+fn parse_archive_json(source : String) -> Json raise GraftError {
+  guard source.length() <= 160000000 else {
+    raise LimitExceeded("archive exceeds 160 million UTF-16 units")
+  }
+  @json.parse(source, max_nesting_depth=16) catch {
+    e => raise InvalidArchive("malformed JSON: " + e.to_string())
+  }
 }
 
 ///|
@@ -183,32 +190,60 @@ fn parse_decision(value : Json) -> Decision raise GraftError {
 /// A plan archive contains all three inputs and explicit decisions. Decoding
 /// recomputes the plan, so hand-edited derived output cannot bypass validation.
 pub fn Plan::encode(self : Plan) -> String {
-  archive(
-    "moongraft.plan",
+  let fields = [
+    baseline_json(self.baseline),
+    tree_json(self.current),
+    baseline_json(self.next),
+    Json::array(self.decisions.map(decision_json)),
+  ]
+  if self.renames.is_empty() {
+    archive("moongraft.plan", Json::array(fields))
+  } else {
+    fields.push(rename_rows(self.renames))
     Json::array([
-      baseline_json(self.baseline),
-      tree_json(self.current),
-      baseline_json(self.next),
-      Json::array(self.decisions.map(decision_json)),
-    ]),
-  )
+      Json::string("moongraft.plan"),
+      Json::string("2"),
+      Json::array(fields),
+    ]).stringify() +
+    "\n"
+  }
 }
 
 ///|
 pub fn Plan::decode(source : String) -> Plan raise GraftError {
-  guard open_archive(source, "moongraft.plan")
-    is Array([base, current, next, Array(decisions)]) else {
-    raise InvalidArchive(
-      "expected plan [baseline, current-files, next-baseline, decisions]",
-    )
+  let (base, current, next, decisions, renames) = match
+    parse_archive_json(source) {
+    Array(
+      [
+        String("moongraft.plan"),
+        String("1"),
+        Array([base, current, next, Array(decisions)]),
+      ]
+    ) => (base, current, next, decisions, [])
+    Array(
+      [
+        String("moongraft.plan"),
+        String("2"),
+        Array([base, current, next, Array(decisions), mappings]),
+      ]
+    ) => {
+      let renames = parse_renames(mappings)
+      guard !renames.is_empty() else {
+        raise InvalidArchive("version 2 plans require file moves")
+      }
+      (base, current, next, decisions, renames)
+    }
+    _ =>
+      raise InvalidArchive("expected a version 1 or 2 moongraft.plan archive")
   }
   guard decisions.length() <= 6144 else {
     raise LimitExceeded("more than 6144 decisions")
   }
-  let plan = plan_update(
+  let plan = plan_update_with_renames(
     parse_baseline(base),
     parse_tree(current),
     parse_baseline(next),
+    renames,
   )
   plan.resolve(decisions.map(parse_decision))
 }

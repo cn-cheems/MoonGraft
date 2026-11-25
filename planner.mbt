@@ -54,10 +54,17 @@ pub fn Plan::conflict_detail(
 ) -> ConflictDetail raise GraftError {
   for change in self.changes {
     if change.path == path && change.kind is Conflict(reason) {
+      let mut original = path
+      for rename in self.renames {
+        if rename.to_path == path {
+          original = rename.from_path
+          break
+        }
+      }
       return {
         reason,
-        base: self.baseline.tree.get(path),
-        project: self.current.get(path),
+        base: self.baseline.tree.get(original),
+        project: self.current.get(original),
         template: self.next.tree.get(path),
       }
     }
@@ -73,21 +80,49 @@ pub fn plan_update(
   current : Tree,
   next : Baseline,
 ) -> Plan raise GraftError {
+  plan_update_with_renames(baseline, current, next, [])
+}
+
+///|
+/// Align explicitly moved files at their new paths before three-way comparison.
+/// The plan keeps the original snapshots for freshness checks and rollback.
+pub fn plan_update_with_renames(
+  baseline : Baseline,
+  current : Tree,
+  next : Baseline,
+  renames : Array[FileRename],
+) -> Plan raise GraftError {
   guard baseline.template_id == next.template_id else {
     raise InvalidTemplate(
       "template identifiers differ; an upgrade cannot silently change template ownership",
     )
   }
+  let (renames, merge_base, merge_current) = align_renames(
+    baseline.tree,
+    current,
+    next.tree,
+    renames,
+  )
   let changes = []
-  for path in all_paths([baseline.tree, current, next.tree]) {
-    let (kind, _) = classify(
-      baseline.tree.get(path),
-      current.get(path),
-      next.tree.get(path),
-    )
+  for path in all_paths([merge_base, merge_current, next.tree]) {
+    let ours = merge_current.get(path)
+    let kind = if ours is None && renames.any(rename => rename.to_path == path) {
+      Conflict(RenameSourceDeleted)
+    } else {
+      classify(merge_base.get(path), ours, next.tree.get(path)).0
+    }
     changes.push({ path, kind, })
   }
-  let plan = { baseline, current, next, changes, decisions: [], }
+  let plan = {
+    baseline,
+    current,
+    next,
+    renames,
+    merge_base,
+    merge_current,
+    changes,
+    decisions: [],
+  }
   // With no content conflicts, validate the combined directory structure now.
   if plan.conflicts().is_empty() {
     ignore(plan.materialize())
@@ -167,10 +202,10 @@ fn Plan::materialize(self : Plan) -> Tree raise GraftError {
   guard unresolved.is_empty() else { raise Unresolved(unresolved) }
   let files = []
   for change in self.changes {
-    let ours = self.current.get(change.path)
+    let ours = self.merge_current.get(change.path)
     let remote = self.next.tree.get(change.path)
     let (_, automatic) = classify(
-      self.baseline.tree.get(change.path),
+      self.merge_base.get(change.path),
       ours,
       remote,
     )

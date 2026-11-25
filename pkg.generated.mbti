@@ -8,6 +8,8 @@ import {
 // Values
 pub fn plan_update(Baseline, Tree, Baseline) -> Plan raise GraftError
 
+pub fn plan_update_with_renames(Baseline, Tree, Baseline, Array[FileRename]) -> Plan raise GraftError
+
 pub fn track(String, String, Tree) -> Baseline raise GraftError
 
 // Errors
@@ -79,6 +81,7 @@ pub(all) enum ConflictReason {
   BothModified
   TemplateDeleted
   ProjectDeleted
+  RenameSourceDeleted
   TextMergeLimit
 } derive(Eq, @debug.Debug)
 pub fn ConflictReason::equal(Self, Self) -> Bool
@@ -104,6 +107,16 @@ pub fn File::new(String, Bytes, executable? : Bool) -> Self raise GraftError
 pub fn File::not_equal(Self, Self) -> Bool
 pub fn File::text(String, String, executable? : Bool) -> Self raise GraftError
 pub fn File::to_repr(Self) -> @debug.Repr
+
+pub struct FileRename {
+  from_path : String
+  to_path : String
+} derive(Eq, @debug.Debug)
+pub fn FileRename::decode_list(String) -> Array[Self] raise GraftError
+pub fn FileRename::equal(Self, Self) -> Bool
+pub fn FileRename::new(String, String) -> Self
+pub fn FileRename::not_equal(Self, Self) -> Bool
+pub fn FileRename::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OutputChange {
   Added(String, Int32, Bool)
@@ -136,6 +149,7 @@ pub fn Plan::output_json(Self) -> String raise GraftError
 pub fn Plan::prepare(Self, Tree, String) -> Applied raise GraftError
 pub fn Plan::project_drift(Self, Tree) -> Array[ProjectDrift]
 pub fn Plan::refresh(Self, Tree) -> Refreshed raise GraftError
+pub fn Plan::renames(Self) -> Array[FileRename]
 pub fn Plan::report(Self) -> String
 pub fn Plan::report_json(Self) -> String
 pub fn Plan::resolve(Self, Array[Decision]) -> Self raise GraftError

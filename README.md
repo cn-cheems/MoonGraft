@@ -164,6 +164,24 @@ moon run cmd/main -- plan-git source-v2.json candidate-v2/project <commit-v3> pl
 写入失败时保留已写记录，完成标记未生成的目录应保留检查，并改用新目录重新验收。
 历史无来源快照的批次可继续逐项目验收，整批验收需重新准备带快照的批次。
 
+## 模板文件重命名
+
+上游移动模板文件时，用版本化映射明确声明旧路径和新路径。
+
+```json
+["moongraft.renames","1",[["ci/build.yml",".github/workflows/build.yml"]]]
+```
+
+```text
+moon run cmd/main -- plan-git-renames source.json my-project <target-sha> renames.json plan.json
+moon run cmd/main -- plan-renames baseline.json my-project v2 template-v2 renames.json plan.json
+```
+
+工具按新路径合并旧模板、本地文件和新模板。显式映射适用于一对一文件移动，要求旧路径只存在于旧模板，新路径只存在于新模板。目标已被本地文件占用或存在文件与目录碰撞时，规划会报告错误，维护者可先处理冲突路径。若本地已删除旧文件，计划会要求决定是否保持删除。
+
+审阅和决策使用新路径。`keep-local` 将原文件的本地版本写到新路径，原文件已删除时保留该删除。预算和路径保护按候选的实际新增、删除和修改检查移动。刷新保留映射，回退会恢复原文件树与原基线。含移动的计划与 JSON 审阅报告使用版本 2。
+运行 `moon run --deny-warn scripts/git-lifecycle.mbtx` 可验证固定提交的移动、采用和回退。
+
 ## 实际目录升级
 
 `template-v1` 和 `template-v2` 是使用相应版本与项目变量渲染好的模板目录。基线、计划与导出目录放在当前项目之外。输出文件使用独占创建，重复执行时请换一个新名称。
@@ -234,7 +252,8 @@ CLI 非零退出。门禁覆盖人工替换结果，但不会隐式成为导出�
 缺失文件或陌生数据均失败，需要恢复时再显式运行 `resume`。
 
 CI 集成可调用 `report-json plan.json` 或 `Plan::report_json()`。
-输出固定结构 `["moongraft.report","1",模板标识,旧版本,新版本,变更行,未解决路径]`；
+普通计划输出 `["moongraft.report","1",模板标识,旧版本,新版本,变更行,未解决路径]`。
+含移动的报告使用版本 `"2"`，最后一项追加 `[[旧路径,新路径], ...]`。
 每行包含路径、分类和决策（未决策为 null），按路径排序，适合解析归档。
 
 批量审阅：`review-template plan.json review.json` 创建绑定当前计划的空审阅文件。
@@ -276,7 +295,7 @@ CI 集成可调用 `report-json plan.json` 或 `Plan::report_json()`。
 
 这是参考 [Copier](https://github.com/copier-org/copier) 和 [Cruft](https://github.com/cruft/cruft) 工作流的新 MoonBit 实现。现有 [moon-new](https://github.com/moonbit-community/moon-new) 负责创建项目，[moonctl](https://github.com/moonbitstack/moonctl) 侧重服务代码生成，[MoonEdit](https://mooncakes.io/docs/vectie/moonedit) 提供编辑器与文本合并核心。MoonGraft 的边界是模板来源、目录级三方升级、审阅决策、连续版本基线和完整候选项目导出。[调研依据与不确定性](docs/ecosystem.md)。
 
-计划中的能力包括参数化生成、远程 Git 版本发现和显式重命名映射。
+计划中的能力包括参数化生成和远程 Git 版本发现。
 
 ## 许可证与来源
 
