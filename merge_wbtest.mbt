@@ -50,3 +50,41 @@ test "merge convergence insert boundaries identical hunks and bounded work" {
   let big = b"a\n".repeat(4097)
   assert_eq(merge_content(big, big + b"x", big + b"y"), Err(TextMergeLimit))
 }
+
+///|
+test "large sparse edits merge across byte-preserving prefix and suffix windows" {
+  let beginning = b"\xef\xbb\xbfstart\r\n" + b"repeat\r\n".repeat(700)
+  let middle = b"repeat\r\n".repeat(1300)
+  let end = b"repeat\r\n".repeat(700) + b"no final newline"
+  let base = beginning + b"alpha\r\n" + middle + b"omega\r\n" + end
+  let project = beginning + b"ALPHA\r\n" + middle + b"omega\r\n" + end
+  let template = beginning + b"alpha\r\n" + middle + b"OMEGA\r\n" + end
+  let expected = beginning + b"ALPHA\r\n" + middle + b"OMEGA\r\n" + end
+  assert_eq(merge_content(base, project, template), Ok(expected))
+  assert_eq(merge_content(base, template, project), Ok(expected))
+  assert_eq(
+    merge_content(
+      base,
+      project,
+      beginning + b"REMOTE\r\n" + middle + b"omega\r\n" + end,
+    ),
+    Err(BothModified),
+  )
+}
+
+///|
+test "large insertion and deletion translate positions and dense changes stay bounded" {
+  let prefix = b"p\n".repeat(1024)
+  let suffix = b"s\n".repeat(1024)
+  let base = prefix + b"first\nspacer\nlast\n" + suffix
+  let project = prefix + b"insert\nfirst\nspacer\nlast\n" + suffix
+  let template = prefix + b"first\nspacer\n" + suffix
+  assert_eq(
+    merge_content(base, project, template),
+    Ok(prefix + b"insert\nfirst\nspacer\n" + suffix),
+  )
+  assert_eq(
+    merge_content(prefix + suffix, b"x\n".repeat(2048), b"y\n".repeat(2048)),
+    Err(TextMergeLimit),
+  )
+}

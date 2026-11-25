@@ -16,6 +16,7 @@
   source records, and retry manifests preserving failed projects' pinned inputs.
 - Explicit file moves that carry local customizations across template paths and
   preserve conflict review, policy checks, and exact rollback.
+- Bounded changed-window diffs for long text files with localized edits.
 - Historical template adoption case with a disclosed compatibility recipe,
   whole-output checks, business regression tests and revision-bound CI evidence.
 

@@ -291,6 +291,8 @@ CI 集成可调用 `report-json plan.json` 或 `Plan::report_json()`。
 
 当前不支持模板脚本执行、远程模板获取、自动重命名识别、Jinja/Cookiecutter 兼容、JSON/YAML 语义合并、原地更新、所有权/ACL/其他权限位保留、并发写入或断电持久性保证。目录扫描和导出要求调用者提供可信且独占使用的本地目录。
 
+长文本的完整差分超过预算时，MoonGraft 分别裁剪旧模板与本地版本、旧模板与新版之间相同的前后行，再在每个变更区间内计算差分。变更位置仍以旧模板为基准。每个差分表最多 262,144 个单元，扫描的行数上限保持 4,096。跨度过大的修改仍报告 `conflict:text-merge-limit`，可通过审阅明确选择结果。
+
 ## 差异化与后续方向
 
 这是参考 [Copier](https://github.com/copier-org/copier) 和 [Cruft](https://github.com/cruft/cruft) 工作流的新 MoonBit 实现。现有 [moon-new](https://github.com/moonbit-community/moon-new) 负责创建项目，[moonctl](https://github.com/moonbitstack/moonctl) 侧重服务代码生成，[MoonEdit](https://mooncakes.io/docs/vectie/moonedit) 提供编辑器与文本合并核心。MoonGraft 的边界是模板来源、目录级三方升级、审阅决策、连续版本基线和完整候选项目导出。[调研依据与不确定性](docs/ecosystem.md)。

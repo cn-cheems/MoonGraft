@@ -78,6 +78,50 @@ fn diff_lines(base : Array[Bytes], changed : Array[Bytes]) -> Array[Edit] {
 }
 
 ///|
+fn fits_line_diff(base_length : Int32, changed_length : Int32) -> Bool {
+  (base_length + 1) * (changed_length + 1) <= 262144
+}
+
+///|
+/// Preserve the existing edit alignment whenever the full diff fits. For
+/// longer inputs isolate the changed window and translate back to base offsets.
+fn bounded_line_diff(
+  base : Array[Bytes],
+  changed : Array[Bytes],
+) -> Array[Edit]? {
+  if fits_line_diff(base.length(), changed.length()) {
+    return Some(diff_lines(base, changed))
+  }
+  let common = Int32::min(base.length(), changed.length())
+  let mut start = 0
+  while start < common && base[start] == changed[start] {
+    start += 1
+  }
+  let mut base_end = base.length()
+  let mut changed_end = changed.length()
+  while base_end > start &&
+        changed_end > start &&
+        base[base_end - 1] == changed[changed_end - 1] {
+    base_end -= 1
+    changed_end -= 1
+  }
+  guard fits_line_diff(base_end - start, changed_end - start) else {
+    return None
+  }
+  let edits = diff_lines(
+    base[start:base_end].to_owned(),
+    changed[start:changed_end].to_owned(),
+  )
+  Some(
+    edits.map(edit => {
+      start: edit.start + start,
+      end: edit.end + start,
+      replacement: edit.replacement,
+    }),
+  )
+}
+
+///|
 fn overlaps(a : Edit, b : Edit) -> Bool {
   if a.start == a.end && b.start == b.end {
     return a.start == b.start
@@ -124,16 +168,12 @@ fn merge_content(
   let a = lines(base)
   let b = lines(ours)
   let c = lines(remote)
-  // Bound line arrays and LCS memory/work before multiplication/allocation.
-  guard a.length() <= 4096 &&
-    b.length() <= 4096 &&
-    c.length() <= 4096 &&
-    (a.length() + 1) * (b.length() + 1) <= 262144 &&
-    (a.length() + 1) * (c.length() + 1) <= 262144 else {
+  // The line scan bounds array lengths and makes the table size calculation safe.
+  guard bounded_line_diff(a, b) is Some(edits) &&
+    bounded_line_diff(a, c) is Some(incoming_edits) else {
     return Err(TextMergeLimit)
   }
-  let edits = diff_lines(a, b)
-  for incoming in diff_lines(a, c) {
+  for incoming in incoming_edits {
     let mut identical = false
     for existing in edits {
       if existing == incoming {
