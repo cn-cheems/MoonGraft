@@ -1,4 +1,7 @@
 ///|
+const BatchAcceptanceMarker = "acceptance.json"
+
+///|
 /// Accept all verified candidates using their captured source records.
 /// Revalidate every target against Git before creating any output. The new
 /// directory contains source records and a final acceptance.json marker.
@@ -9,9 +12,26 @@ pub async fn accept_git_batch(batch : String, destination : String) -> Json {
   let entries = parse_git_batch(
     @utf8.decode(read_bytes(batch + "/manifest.json"), ignore_bom=false),
   )
+  let filenames = entries.map(entry => {
+    let filename = entry.id + ".json"
+    if filename == BatchAcceptanceMarker {
+      "acceptance.source.json"
+    } else {
+      filename
+    }
+  })
+  // Validate the whole layout before creating the directory or writing records.
+  ignore(
+    @graft.Tree::new(
+      ([BatchAcceptanceMarker] + filenames).map(filename => {
+        @graft.File::new(filename, b"")
+      }),
+    ),
+  )
   let records = []
   let rows = []
-  for entry in entries {
+  for index, entry in entries {
+    let filename = filenames[index]
     if @fs.exists(entry.project) {
       require_outside(destination, entry.project)
     }
@@ -23,12 +43,12 @@ pub async fn accept_git_batch(batch : String, destination : String) -> Json {
       plan,
       scan(directory + "/candidate/project"),
     )
-    records.push((entry.id, target))
+    records.push((filename, target))
     rows.push(
       Json::object({
         "id": Json::string(entry.id),
         "revision": Json::string(target.baseline.revision),
-        "source": Json::string(entry.id + ".json"),
+        "source": Json::string(filename),
       }),
     )
   }
@@ -37,9 +57,12 @@ pub async fn accept_git_batch(batch : String, destination : String) -> Json {
     "projects": Json::array(rows),
   })
   @fs.mkdir(destination)
-  for (id, source) in records {
-    write_new(destination + "/" + id + ".json", source.encode())
+  for (filename, source) in records {
+    write_new(destination + "/" + filename, source.encode())
   }
-  write_new(destination + "/acceptance.json", report.stringify() + "\n")
+  write_new(
+    destination + "/" + BatchAcceptanceMarker,
+    report.stringify() + "\n",
+  )
   report
 }

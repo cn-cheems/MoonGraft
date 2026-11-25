@@ -741,6 +741,40 @@ async fn main {
     original_candidate,
   )
   ignore(cli(["accept-git-batch", individual_ready, root + "/accepted-retry"]))
+  let collision_manifest = root + "/acceptance-name-manifest.json"
+  let collision_rows = ["acceptance", "acceptance-source"].map(id => {
+    Json::array([id, source, project, second].map(Json::string))
+  })
+  @fs.write_file(
+    collision_manifest,
+    Json::array([
+      Json::string("moongraft.git-batch.v1"),
+      Json::array(collision_rows),
+    ]).stringify(),
+  )
+  let collision_batch = root + "/acceptance-name-batch"
+  ignore(cli(["stage-git-batch", collision_manifest, collision_batch]))
+  let collision_output = root + "/acceptance-name-records"
+  let collision_receipt = cli([
+    "accept-git-batch", collision_batch, collision_output,
+  ])
+  guard collision_receipt.trim() ==
+    @fs.read_file(collision_output + "/acceptance.json").text().trim() &&
+    collision_receipt.contains("\"source\":\"acceptance.source.json\"") &&
+    collision_receipt.contains("\"source\":\"acceptance-source.json\"") &&
+    collision_receipt.contains(
+      "\"format\":\"moongraft.git-batch-acceptance.v1\"",
+    ) else {
+    fail(
+      "Acceptance report must name distinct sources and match the completion marker",
+    )
+  }
+  for filename in ["acceptance.source.json", "acceptance-source.json"] {
+    guard @fs.read_file(collision_output + "/" + filename).binary() ==
+      @fs.read_file(captured_v2).binary() else {
+      fail("Acceptance filename collision replaced a project source")
+    }
+  }
   let batch_accepted = root + "/batch-source-v2.json"
   ignore(
     cli([

@@ -14,6 +14,7 @@
   version 2 manifests with per-project policies enforced alongside common rules.
 - Captured batch inputs and policy evidence, all-candidate acceptance into new
   source records, and retry manifests preserving failed projects' pinned inputs.
+- Batch acceptance uses a distinct source filename for the `acceptance` project ID.
 - Explicit file moves that carry local customizations across template paths and
   preserve conflict review, policy checks, and exact rollback.
 - Bounded changed-window diffs for long text files with localized edits.

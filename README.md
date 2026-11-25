@@ -186,6 +186,7 @@ moon run cmd/main -- plan-git source-v2.json candidate-v2/project <commit-v3> pl
 `moon run cmd/main -- accept-git-batch output accepted-sources`。
 它先核验整批候选及保存的策略，再使用批次内的来源快照逐项核对 Git 目标提交。
 全部通过后，才创建新目录并写入每个项目的新来源记录（如 `api.json`），最后写入 `acceptance.json`。
+记录文件以报告中的 `projects[].source` 为准。项目 ID 为 `acceptance` 时，来源记录写入 `acceptance.source.json`。
 采用对应候选时保存其新来源记录，下一轮升级使用该记录。
 外部来源文件的后续编辑不会改变本次验收依据。验收需要本地模板仓库可访问，迁移后先按迁移流程重新准备批次。
 写入失败时保留已写记录，完成标记未生成的目录应保留检查，并改用新目录重新验收。
