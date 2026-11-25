@@ -27,12 +27,16 @@ business-file preservation, baseline advancement, new-process interrupted-export
 recovery, stale-plan diagnostics, decision refresh, protected paths, policy
 rejection before directory creation, read-only verification and rollback.
 
-The Git lifecycle test uses a synthetic local repository with three commits.
+The Git lifecycle test creates local Git fixtures.
 It verifies source capture and project creation from a committed subtree,
 linking an existing customized project, discovery of locally known descendant
 revisions, batch isolation between ready, conflicting and invalid entries,
 candidate rejection after an unexpected edit, retry, and two
-successive upgrades with a preserved business file. Run it independently with
+successive upgrades with a preserved business file. It also exercises parameter
+migration and rollback, then merges independent JSON changes through both CLI
+entry points. A second JSON upgrade checks the conflict pointer, rejects export
+before creating the candidate, and exports a manually resolved replacement.
+Run it independently with
 `moon run --deny-warn scripts/git-lifecycle.mbtx`. Add `native` after the
 script path to exercise the native CLI with a local C toolchain.
 

@@ -48,7 +48,7 @@ core-model executable file. Other permission bits, ownership and ACLs are not
 part of the managed model.
 
 No template execution, remote downloads, Jinja/Cookiecutter compatibility,
-automatic rename inference, schema-aware JSON/YAML merging, permissions/ACL
+automatic rename inference, schema-aware YAML merging, permissions/ACL
 preservation, in-place updates, multi-writer locking, or crash durability claims.
 Export is for a trusted, exclusively accessed local workspace. CI support and
 actual execution results must be reported separately.
@@ -75,6 +75,11 @@ Parameterized Git records bind the committed subtree, renderer version and
 canonical parameters to the rendered baseline. Creating and adopting projects
 replays the pinned baseline. Upgrades render the target revision with the same
 recipe, so the merge engine compares three concrete file trees.
+
+An explicit parameter migration relates the old and new render identities for
+one repository and subtree. JSON merging is selected by path and compares
+object keys, retaining number spelling and reporting conflicts as JSON Pointers.
+Both options are persisted in the plan and restored during refresh.
 
 ## Roadmap
 

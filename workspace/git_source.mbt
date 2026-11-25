@@ -393,6 +393,19 @@ pub async fn GitSource::plan_upgrade_with_renames(
 }
 
 ///|
+/// Plan an upgrade with strict JSON merging on the selected paths.
+pub async fn GitSource::plan_json_upgrade(
+  self : GitSource,
+  current : @graft.Tree,
+  revision : String,
+  json_paths : Array[String],
+) -> @graft.Plan {
+  self.verify_parameterized_baseline()
+  let target = self.at(revision)
+  @graft.plan_json_upgrade(self.baseline, current, target.baseline, json_paths)
+}
+
+///|
 /// Advance the record after verifying the resolved candidate and both baselines.
 pub async fn GitSource::accept_upgrade(
   self : GitSource,
@@ -448,6 +461,7 @@ pub async fn GitSource::plan_parameter_upgrade(
   revision : String,
   migration : @graft.ParameterMigration,
   renames~ : Array[@graft.FileRename] = [],
+  json_paths~ : Array[String] = [],
 ) -> @graft.Plan {
   self.verify_replay()
   let target = self.capture_migrated(revision, migration)
@@ -457,5 +471,6 @@ pub async fn GitSource::plan_parameter_upgrade(
     target.baseline,
     migration,
     renames~,
+    json_paths~,
   )
 }

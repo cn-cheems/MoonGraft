@@ -13,6 +13,7 @@ let usage : String =
   #|plan-git <source.json> <project-dir> <target-commit-sha> <new-plan.json>
   #|plan-git-renames <source.json> <project-dir> <target-commit-sha> <renames.json> <new-plan.json>
   #|plan-git-parameters <source.json> <project-dir> <target-commit-sha> <migration.json> <new-plan.json>
+  #|plan-git-json <source.json> <project-dir> <target-commit-sha> <json-paths.json> <new-plan.json>
   #|accept-git <source.json> <resolved-plan.json> <accepted-project-dir> <new-source.json>
   #|stage-git-batch <manifest.json> <new-output-dir>
   #|stage-git-batch-checked <manifest.json> <policy.json> <new-output-dir>
@@ -23,6 +24,7 @@ let usage : String =
   #|track <template-id> <revision> <rendered-template-dir> <new-baseline.json>
   #|plan <baseline.json> <project-dir> <new-revision> <new-template-dir> <new-plan.json>
   #|plan-renames <baseline.json> <project-dir> <new-revision> <new-template-dir> <renames.json> <new-plan.json>
+  #|plan-json <baseline.json> <project-dir> <new-revision> <new-template-dir> <json-paths.json> <new-plan.json>
   #|review <plan.json>
   #|report-json <plan.json>
   #|preview-json <resolved-plan.json>
@@ -201,6 +203,21 @@ async fn run(args : Array[String]) -> Unit {
       @workspace.write_new(output, plan.encode())
       println(plan.report())
     }
+    ["plan-git-json", input, project, revision, selection, output] => {
+      @workspace.require_outside(output, project)
+      let source = @workspace.GitSource::decode(@workspace.read_text(input))
+      @workspace.require_outside(output, source.repository)
+      let paths = @graft.decode_json_merge_paths(
+        @workspace.read_text(selection),
+      )
+      let plan = source.plan_json_upgrade(
+        @workspace.scan(project),
+        revision,
+        paths,
+      )
+      @workspace.write_new(output, plan.encode())
+      println(plan.report())
+    }
     ["accept-git", input, plan_path, project, output] => {
       @workspace.require_outside(output, project)
       let source = @workspace.GitSource::decode(@workspace.read_text(input))
@@ -284,6 +301,27 @@ async fn run(args : Array[String]) -> Unit {
         @workspace.scan(project),
         next,
         renames,
+      )
+      @workspace.write_new(output, plan.encode())
+      println(plan.report())
+    }
+    ["plan-json", input, project, revision, template, selection, output] => {
+      @workspace.require_outside(output, project)
+      @workspace.require_outside(output, template)
+      let baseline = @graft.Baseline::decode(@workspace.read_text(input))
+      let next = @graft.track(
+        baseline.template_id,
+        revision,
+        @workspace.scan(template),
+      )
+      let paths = @graft.decode_json_merge_paths(
+        @workspace.read_text(selection),
+      )
+      let plan = @graft.plan_json_upgrade(
+        baseline,
+        @workspace.scan(project),
+        next,
+        paths,
       )
       @workspace.write_new(output, plan.encode())
       println(plan.report())

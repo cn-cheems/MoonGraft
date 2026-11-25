@@ -6,7 +6,13 @@ import {
 }
 
 // Values
-pub fn plan_parameter_upgrade(Baseline, Tree, Baseline, ParameterMigration, renames? : Array[FileRename]) -> Plan raise GraftError
+pub fn decode_json_merge_paths(String) -> Array[String] raise GraftError
+
+pub fn merge_json(Bytes, Bytes, Bytes) -> Result[Bytes, Array[String]] raise GraftError
+
+pub fn plan_json_upgrade(Baseline, Tree, Baseline, Array[String], renames? : Array[FileRename]) -> Plan raise GraftError
+
+pub fn plan_parameter_upgrade(Baseline, Tree, Baseline, ParameterMigration, renames? : Array[FileRename], json_paths? : Array[String]) -> Plan raise GraftError
 
 pub fn plan_update(Baseline, Tree, Baseline) -> Plan raise GraftError
 
@@ -62,6 +68,7 @@ pub(all) enum ChangeKind {
   KeptLocal
   TookTemplate
   Merged
+  MergedJson
   Conflict(ConflictReason)
 } derive(Eq, @debug.Debug)
 pub fn ChangeKind::equal(Self, Self) -> Bool
@@ -85,6 +92,7 @@ pub(all) enum ConflictReason {
   ProjectDeleted
   RenameSourceDeleted
   TextMergeLimit
+  JsonConflict
 } derive(Eq, @debug.Debug)
 pub fn ConflictReason::equal(Self, Self) -> Bool
 pub fn ConflictReason::not_equal(Self, Self) -> Bool
@@ -154,6 +162,8 @@ pub fn Plan::decode(String) -> Self raise GraftError
 pub fn Plan::drift_json(Self, Tree) -> String
 pub fn Plan::encode(Self) -> String
 pub fn Plan::equal(Self, Self) -> Bool
+pub fn Plan::json_conflicts(Self, String) -> Array[String]
+pub fn Plan::json_merge_paths(Self) -> Array[String]
 pub fn Plan::next_baseline(Self) -> Baseline
 pub fn Plan::not_equal(Self, Self) -> Bool
 pub fn Plan::output_changes(Self) -> Array[OutputChange] raise GraftError

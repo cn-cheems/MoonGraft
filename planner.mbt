@@ -109,6 +109,7 @@ pub fn plan_parameter_upgrade(
   next : Baseline,
   migration : ParameterMigration,
   renames~ : Array[FileRename] = [],
+  json_paths~ : Array[String] = [],
 ) -> Plan raise GraftError {
   plan_update_for_diff(
     baseline,
@@ -117,7 +118,21 @@ pub fn plan_parameter_upgrade(
     renames,
     true,
     parameter_migration=migration,
+    json_paths~,
   )
+}
+
+///|
+/// Plan an upgrade with strict JSON merging on explicitly selected paths.
+/// When a move is declared, select the file by its destination path.
+pub fn plan_json_upgrade(
+  baseline : Baseline,
+  current : Tree,
+  next : Baseline,
+  json_paths : Array[String],
+  renames~ : Array[FileRename] = [],
+) -> Plan raise GraftError {
+  plan_update_for_diff(baseline, current, next, renames, true, json_paths~)
 }
 
 ///|
@@ -128,6 +143,7 @@ fn plan_update_for_diff(
   renames : Array[FileRename],
   window_diff : Bool,
   parameter_migration? : ParameterMigration,
+  json_paths~ : Array[String] = [],
 ) -> Plan raise GraftError {
   if parameter_migration is Some(migration) {
     let (repository, subdir, old_values) = render_identity(baseline.template_id)
@@ -150,11 +166,36 @@ fn plan_update_for_diff(
     next.tree,
     renames,
   )
+  guard json_paths.length() <= 2048 else {
+    raise LimitExceeded("more than 2048 JSON merge paths")
+  }
+  let json_changes : Map[String, JsonFileMerge] = Map([])
+  for path in json_paths {
+    validate_path(path)
+    guard !json_changes.contains(path) else {
+      raise InvalidTemplate("Duplicate JSON merge path: " + path)
+    }
+    let base_file = merge_base.get(path)
+    let project_file = merge_current.get(path)
+    let template_file = next.tree.get(path)
+    guard base_file is Some(_) ||
+      project_file is Some(_) ||
+      template_file is Some(_) else {
+      raise InvalidTemplate(
+        "JSON merge path is absent from all three trees: " + path,
+      )
+    }
+    json_changes[path] = prepare_json_file(
+      path, base_file, project_file, template_file, window_diff,
+    )
+  }
   let changes = []
   for path in all_paths([merge_base, merge_current, next.tree]) {
     let ours = merge_current.get(path)
     let kind = if ours is None && renames.any(rename => rename.to_path == path) {
       Conflict(RenameSourceDeleted)
+    } else if json_changes.get(path) is Some(change) {
+      change.kind
     } else {
       classify(merge_base.get(path), ours, next.tree.get(path), window_diff).0
     }
@@ -169,6 +210,7 @@ fn plan_update_for_diff(
     merge_current,
     window_diff,
     parameter_migration,
+    json_changes,
     changes,
     decisions: [],
   }
@@ -206,6 +248,9 @@ pub fn Plan::resolve(
           decision.path,
           "replacement must have the same path",
         )
+      }
+      if self.json_changes.contains(decision.path) {
+        ignore(parse_merge_json(file.content, "replacement " + decision.path))
       }
     }
     let mut replaced = false
@@ -253,12 +298,16 @@ fn Plan::materialize(self : Plan) -> Tree raise GraftError {
   for change in self.changes {
     let ours = self.merge_current.get(change.path)
     let remote = self.next.tree.get(change.path)
-    let (_, automatic) = classify(
-      self.merge_base.get(change.path),
-      ours,
-      remote,
-      self.window_diff,
-    )
+    let automatic = match self.json_changes.get(change.path) {
+      Some(json) => json.output
+      None =>
+        classify(
+          self.merge_base.get(change.path),
+          ours,
+          remote,
+          self.window_diff,
+        ).1
+    }
     let mut selected = automatic
     if change.kind is Conflict(_) {
       for decision in self.decisions {

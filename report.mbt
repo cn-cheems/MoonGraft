@@ -16,15 +16,37 @@ pub fn Plan::report_json(self : Plan) -> String {
   })
   let fields = [
     Json::string("moongraft.report"),
-    Json::string(if self.renames.is_empty() { "1" } else { "2" }),
+    Json::string(
+      if !self.json_changes.is_empty() {
+        "3"
+      } else if self.renames.is_empty() {
+        "1"
+      } else {
+        "2"
+      },
+    ),
     Json::string(self.baseline.template_id),
     Json::string(self.baseline.revision),
     Json::string(self.next.revision),
     Json::array(rows),
     Json::array(self.unresolved().map(Json::string)),
   ]
-  if !self.renames.is_empty() {
+  if !self.renames.is_empty() || !self.json_changes.is_empty() {
     fields.push(rename_rows(self.renames))
+  }
+  if !self.json_changes.is_empty() {
+    fields.push(
+      Json::array(
+        self
+        .json_merge_paths()
+        .map(path => {
+          Json::array([
+            Json::string(path),
+            Json::array(self.json_conflicts(path).map(Json::string)),
+          ])
+        }),
+      ),
+    )
   }
   Json::array(fields).stringify() + "\n"
 }
@@ -36,12 +58,14 @@ fn kind_name(kind : ChangeKind) -> String {
     KeptLocal => "keep-local"
     TookTemplate => "take-template"
     Merged => "merged-text"
+    MergedJson => "merged-json"
     Conflict(BothAdded) => "conflict:add/add"
     Conflict(BothModified) => "conflict:modify/modify"
     Conflict(TemplateDeleted) => "conflict:template-deleted/project-modified"
     Conflict(ProjectDeleted) => "conflict:project-deleted/template-modified"
     Conflict(RenameSourceDeleted) => "conflict:project-deleted/template-moved"
     Conflict(TextMergeLimit) => "conflict:text-merge-limit"
+    Conflict(JsonConflict) => "conflict:json"
   }
 }
 
@@ -84,6 +108,15 @@ pub fn Plan::report(self : Plan) -> String {
       }
     }
     output.write_string("\n")
+    for pointer in self.json_conflicts(change.path) {
+      output.write_string(
+        "json-conflict\t" +
+        change.path +
+        "\t" +
+        Json::string(pointer).stringify() +
+        "\n",
+      )
+    }
   }
   output.write_string(
     "Unresolved: " + self.unresolved().length().to_string() + "\n",

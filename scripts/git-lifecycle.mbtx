@@ -227,9 +227,109 @@ async fn check_parameterized_lifecycle(root : String) -> Unit {
 }
 
 ///|
+async fn check_json_lifecycle(root : String) -> Unit {
+  let repository = root + "/json-template"
+  @fs.mkdir(repository)
+  ignore(git(repository, ["init", "--object-format=sha1"]))
+  ignore(git(repository, ["config", "core.autocrlf", "false"]))
+  let path = "service.json"
+  @fs.write_file(repository + "/" + path, "{\"http\":{\"timeout\":10}}\n")
+  let first = commit(repository, "Initial HTTP settings")
+  @fs.write_file(
+    repository + "/" + path,
+    "{\"http\":{\"timeout\":10,\"retries\":3}}\n",
+  )
+  let next = commit(repository, "Add a retry setting")
+  let source = root + "/json-source.json"
+  ignore(cli(["capture-git", repository, first, ".", source]))
+  let original = root + "/json-project"
+  ignore(cli(["create-git", source, original]))
+  let project = original + "/project"
+  @fs.write_file(project + "/" + path, "{\"http\":{\"timeout\":30}}\n")
+  let selection = root + "/json-paths.json"
+  @fs.write_file(
+    selection, "[\"moongraft.json-merge\",\"1\",[\"service.json\"]]",
+  )
+  let plan = root + "/json-plan.json"
+  let report = cli(["plan-git-json", source, project, next, selection, plan])
+  guard report.contains("merged-json\tservice.json") &&
+    report.contains("Unresolved: 0") else {
+    fail("Git plan did not recognize independent JSON field edits")
+  }
+  let directory_plan = root + "/json-directory-plan.json"
+  ignore(
+    cli([
+      "plan-json",
+      original + "/baseline.json",
+      project,
+      next,
+      repository,
+      selection,
+      directory_plan,
+    ]),
+  )
+  guard @fs.read_file(plan).binary() == @fs.read_file(directory_plan).binary() else {
+    fail("Git and rendered directories produced different JSON plans")
+  }
+  let bundle = root + "/json-candidate"
+  ignore(cli(["export", plan, project, bundle]))
+  ignore(cli(["verify-export", bundle]))
+  let candidate = bundle + "/project"
+  guard @fs.read_file(candidate + "/" + path).binary() ==
+    b"{\"http\":{\"retries\":3,\"timeout\":30}}\n" else {
+    fail("JSON candidate lost either the local timeout or the upstream retries")
+  }
+  let adopted = root + "/json-adopted.json"
+  ignore(cli(["accept-git", source, plan, candidate, adopted]))
+  let rollback = root + "/json-rollback"
+  ignore(cli(["rollback-export", plan, candidate, rollback]))
+  guard @fs.read_file(rollback + "/project/" + path).binary() ==
+    @fs.read_file(project + "/" + path).binary() else {
+    fail("JSON rollback changed the original file bytes")
+  }
+  @fs.write_file(
+    repository + "/" + path,
+    "{\"http\":{\"timeout\":20,\"retries\":3}}\n",
+  )
+  let conflicting = commit(repository, "Revise the upstream timeout")
+  let conflict_plan = root + "/json-conflicts.json"
+  let conflict_report = cli([
+    "plan-git-json", adopted, candidate, conflicting, selection, conflict_plan,
+  ])
+  let machine = cli(["report-json", conflict_plan])
+  guard conflict_report.contains(
+      "json-conflict\tservice.json\t\"/http/timeout\"",
+    ) &&
+    machine.contains("[\"service.json\",[\"/http/timeout\"]]") else {
+    fail("JSON conflict reports did not identify the field")
+  }
+  let blocked = root + "/unresolved-json"
+  ignore(
+    cli(
+      ["export", conflict_plan, candidate, blocked],
+      error="Resolve these conflicts",
+    ),
+  )
+  guard !@fs.exists(blocked) else {
+    fail("Unresolved JSON created an export directory")
+  }
+  let replacement = root + "/resolved-service.json"
+  @fs.write_file(replacement, "{\"http\":{\"timeout\":25,\"retries\":3}}\n")
+  let resolved = root + "/json-resolved.json"
+  ignore(cli(["replace", conflict_plan, path, replacement, resolved]))
+  let resolved_bundle = root + "/json-resolved"
+  ignore(cli(["export", resolved, candidate, resolved_bundle]))
+  guard @fs.read_file(resolved_bundle + "/project/" + path).binary() ==
+    @fs.read_file(replacement).binary() else {
+    fail("Reviewed JSON replacement was not preserved")
+  }
+}
+
+///|
 async fn main {
   let root = @fs.tmpdir(prefix="moongraft-git-")
   check_parameterized_lifecycle(root)
+  check_json_lifecycle(root)
   let repository = root + "/template"
   @fs.mkdir(repository)
   ignore(git(repository, ["init", "--object-format=sha1"]))

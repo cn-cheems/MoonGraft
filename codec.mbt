@@ -196,13 +196,23 @@ pub fn Plan::encode(self : Plan) -> String {
     baseline_json(self.next),
     Json::array(self.decisions.map(decision_json)),
   ]
+  let options = []
   if self.parameter_migration is Some(migration) {
-    fields.push(rename_rows(self.renames))
-    fields.push(
+    options.push(
+      Json::array([Json::string("parameter-migration"), migration.payload()]),
+    )
+  }
+  if !self.json_changes.is_empty() {
+    options.push(
       Json::array([
-        Json::array([Json::string("parameter-migration"), migration.payload()]),
+        Json::string("json-merge"),
+        Json::array(self.json_merge_paths().map(Json::string)),
       ]),
     )
+  }
+  if !options.is_empty() {
+    fields.push(rename_rows(self.renames))
+    fields.push(Json::array(options))
     Json::array([
       Json::string("moongraft.plan"),
       Json::string("4"),
@@ -224,7 +234,7 @@ pub fn Plan::encode(self : Plan) -> String {
 
 ///|
 pub fn Plan::decode(source : String) -> Plan raise GraftError {
-  let (base, current, next, decisions, renames, window_diff, migration) = match
+  let (base, current, next, decisions, renames, window_diff, options) = match
     parse_archive_json(source) {
     Array(
       [
@@ -232,7 +242,7 @@ pub fn Plan::decode(source : String) -> Plan raise GraftError {
         String("1"),
         Array([base, current, next, Array(decisions)]),
       ]
-    ) => (base, current, next, decisions, [], false, None)
+    ) => (base, current, next, decisions, [], false, [])
     Array(
       [
         String("moongraft.plan"),
@@ -244,37 +254,31 @@ pub fn Plan::decode(source : String) -> Plan raise GraftError {
       guard version == "3" || !renames.is_empty() else {
         raise InvalidArchive("version 2 plans require file moves")
       }
-      (base, current, next, decisions, renames, version == "3", None)
+      (base, current, next, decisions, renames, version == "3", [])
     }
     Array(
       [
         String("moongraft.plan"),
         String("4"),
-        Array(
-          [
-            base,
-            current,
-            next,
-            Array(decisions),
-            mappings,
-            Array([Array([String("parameter-migration"), payload])]),
-          ]
-        ),
+        Array([base, current, next, Array(decisions), mappings, Array(options)]),
       ]
-    ) =>
-      (
-        base,
-        current,
-        next,
-        decisions,
-        parse_renames(mappings),
-        true,
-        Some(parse_parameter_migration(payload)),
-      )
+    ) if !options.is_empty() && options.length() <= 2 =>
+      (base, current, next, decisions, parse_renames(mappings), true, options)
     _ => raise InvalidArchive("expected a supported moongraft.plan archive")
   }
   guard decisions.length() <= 6144 else {
     raise LimitExceeded("more than 6144 decisions")
+  }
+  let mut migration = None
+  let mut json_paths = []
+  for option in options {
+    match option {
+      Array([String("parameter-migration"), payload]) if migration is None =>
+        migration = Some(parse_parameter_migration(payload))
+      Array([String("json-merge"), payload]) if json_paths.is_empty() =>
+        json_paths = parse_json_merge_paths(payload)
+      _ => raise InvalidArchive("unknown or duplicate plan option")
+    }
   }
   let plan = plan_update_for_diff(
     parse_baseline(base),
@@ -283,6 +287,7 @@ pub fn Plan::decode(source : String) -> Plan raise GraftError {
     renames,
     window_diff,
     parameter_migration?=migration,
+    json_paths~,
   )
   plan.resolve(decisions.map(parse_decision))
 }

@@ -57,7 +57,8 @@ pub fn GitSource::decode(String) -> Self raise
 pub async fn GitSource::discover(Self) -> Array[GitVersion]
 pub fn GitSource::encode(Self) -> String
 pub fn GitSource::inspect_project(Self, @moongraft.Tree) -> @moongraft.Plan raise @moongraft.GraftError
-pub async fn GitSource::plan_parameter_upgrade(Self, @moongraft.Tree, String, @moongraft.ParameterMigration, renames? : Array[@moongraft.FileRename]) -> @moongraft.Plan
+pub async fn GitSource::plan_json_upgrade(Self, @moongraft.Tree, String, Array[String]) -> @moongraft.Plan
+pub async fn GitSource::plan_parameter_upgrade(Self, @moongraft.Tree, String, @moongraft.ParameterMigration, renames? : Array[@moongraft.FileRename], json_paths? : Array[String]) -> @moongraft.Plan
 pub async fn GitSource::plan_upgrade(Self, @moongraft.Tree, String) -> @moongraft.Plan
 pub async fn GitSource::plan_upgrade_with_renames(Self, @moongraft.Tree, String, Array[@moongraft.FileRename]) -> @moongraft.Plan
 pub async fn GitSource::relocate(Self, String) -> Self

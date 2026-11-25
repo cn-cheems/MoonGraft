@@ -182,6 +182,7 @@ pub(all) enum ConflictReason {
   ProjectDeleted
   RenameSourceDeleted
   TextMergeLimit
+  JsonConflict
 } derive(Debug, Eq)
 
 ///|
@@ -190,6 +191,7 @@ pub(all) enum ChangeKind {
   KeptLocal
   TookTemplate
   Merged
+  MergedJson
   Conflict(ConflictReason)
 } derive(Debug, Eq)
 
@@ -237,6 +239,7 @@ pub struct Plan {
   priv merge_current : Tree
   priv window_diff : Bool
   priv parameter_migration : ParameterMigration?
+  priv json_changes : Map[String, JsonFileMerge]
   priv changes : Array[Change]
   priv decisions : Array[Decision]
 } derive(Debug, Eq)
@@ -254,6 +257,21 @@ pub fn Plan::renames(self : Plan) -> Array[FileRename] {
 ///|
 pub fn Plan::parameter_migration(self : Plan) -> ParameterMigration? {
   self.parameter_migration
+}
+
+///|
+pub fn Plan::json_conflicts(self : Plan, path : String) -> Array[String] {
+  match self.json_changes.get(path) {
+    Some(change) => change.conflicts.copy()
+    None => []
+  }
+}
+
+///|
+pub fn Plan::json_merge_paths(self : Plan) -> Array[String] {
+  let paths = self.json_changes.keys().to_array()
+  paths.sort_by((a, b) => a.lexical_compare(b))
+  paths
 }
 
 ///|
