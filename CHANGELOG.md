@@ -24,6 +24,8 @@
   recorded in the plan and replayed during adoption.
 - Opt-in JSON object merging with exact number spelling, strict duplicate-key
   rejection, atomic arrays, and field-level conflict pointers.
+- Exact remote branch and tag pinning from a configured Git remote, with
+  retained local commits for offline plan replay after a ref moves.
 - Historical template adoption case with a disclosed compatibility recipe,
   whole-output checks, business regression tests and revision-bound CI evidence.
 
@@ -40,5 +42,5 @@
 - Formatting/interface checks, strict portable tests, actual native CLI tests and
   package consumer execution in the cross-OS CI workflow.
 
-This is a local-workflow alpha. Remote version discovery and external renderer
+This is a local-workflow alpha. Remote candidate listing and external renderer
 integration remain future work. See README for input limits and platform boundaries.

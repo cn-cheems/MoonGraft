@@ -36,6 +36,9 @@ successive upgrades with a preserved business file. It also exercises parameter
 migration and rollback, then merges independent JSON changes through both CLI
 entry points. A second JSON upgrade checks the conflict pointer, rejects export
 before creating the candidate, and exports a manually resolved replacement.
+The remote pinning fixture uses a second local Git repository as a configured
+remote. It pins an annotated tag, moves it to a different commit, and confirms
+the original JSON plan can be regenerated and adopted offline after Git pruning.
 Run it independently with
 `moon run --deny-warn scripts/git-lifecycle.mbtx`. Add `native` after the
 script path to exercise the native CLI with a local C toolchain.
@@ -63,5 +66,5 @@ reproducible example and workflow sources.
 
 ## Next milestone boundaries
 
-Verify parameterized creation and replay, then extend local discovery with
-explicit remote acquisition. The local batch workflow uses existing source records.
+Enumerate eligible remote versions for a pinned source. The current command
+pins an explicitly selected branch or tag.

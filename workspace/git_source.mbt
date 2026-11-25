@@ -303,7 +303,7 @@ pub async fn GitSource::relocate(
 }
 
 ///|
-/// A local ref and the immutable descendant commit it pointed to when listed.
+/// A branch or tag ref and its resolved commit SHA.
 pub struct GitVersion {
   refname : String
   revision : String

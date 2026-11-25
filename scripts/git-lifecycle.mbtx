@@ -326,10 +326,132 @@ async fn check_json_lifecycle(root : String) -> Unit {
 }
 
 ///|
+async fn check_remote_pin(root : String) -> Unit {
+  let remote = root + "/remote template"
+  let repository = root + "/pin-repository"
+  let tag = "refs/tags/release"
+  @fs.mkdir(remote)
+  ignore(git(remote, ["init", "--initial-branch=main", "--object-format=sha1"]))
+  ignore(git(remote, ["config", "core.autocrlf", "false"]))
+  @fs.write_file(remote + "/service.json", "{\"http\":{\"timeout\":10}}\n")
+  let base = commit(remote, "Initial service settings")
+  ignore(git(root, ["clone", "--no-local", remote, repository]))
+  ignore(git(repository, ["fetch", "origin"]))
+  ignore(git(repository, ["config", "fetch.prune", "true"]))
+  ignore(git(repository, ["config", "fetch.pruneTags", "true"]))
+  ignore(git(repository, ["tag", "local-only", base]))
+  let fetch_head = repository + "/.git/FETCH_HEAD"
+  let fetch_snapshot = @fs.read_file(fetch_head).binary()
+  let ordinary_refs = [
+    "for-each-ref", "refs/heads", "refs/tags", "refs/remotes",
+  ]
+  let refs_snapshot = git(repository, ordinary_refs)
+  let source = root + "/pin-source.json"
+  ignore(cli(["capture-git", repository, base, ".", source]))
+  let generated = root + "/pin-project"
+  ignore(cli(["create-git", source, generated]))
+  let project = generated + "/project"
+  @fs.write_file(project + "/service.json", "{\"http\":{\"timeout\":30}}\n")
+  let selection = root + "/pin-json-paths.json"
+  @fs.write_file(
+    selection, "[\"moongraft.json-merge\",\"1\",[\"service.json\"]]",
+  )
+  let pin = ["pin-git-ref", repository, "origin", tag]
+  ignore(cli(pin, error="Remote Git ref not found"))
+  ignore(
+    cli(
+      ["pin-git-ref", repository, "origin", "refs/tags/*"],
+      error="Invalid remote Git ref name",
+    ),
+  )
+  ignore(
+    cli(
+      ["pin-git-ref", repository, remote, tag],
+      error="Use the name of a configured Git remote",
+    ),
+  )
+  @fs.write_file(
+    remote + "/service.json",
+    "{\"http\":{\"timeout\":10,\"retries\":3}}\n",
+  )
+  let first = commit(remote, "Add a retry limit")
+  ignore(
+    git(remote, [
+      "-c", "user.name=MoonGraft fixture", "-c", "user.email=fixture@example.invalid",
+      "-c", "tag.gpgSign=false", "tag", "-a", "release", "-m", "First release", first,
+    ]),
+  )
+  let pinned = cli(pin).trim().to_owned()
+  guard pinned == first && cli(pin).trim() == first else {
+    fail("Annotated tag did not pin its commit idempotently")
+  }
+  let first_plan = root + "/first-pinned-plan.json"
+  ignore(cli(["plan-git-json", source, project, pinned, selection, first_plan]))
+  ignore(git(remote, ["switch", "-c", "replacement", base]))
+  @fs.write_file(
+    remote + "/service.json",
+    "{\"http\":{\"timeout\":10,\"retries\":5}}\n",
+  )
+  let second = commit(remote, "Set another retry limit")
+  ignore(git(remote, ["tag", "-f", "release", second]))
+  let moved = cli(pin).trim().to_owned()
+  let branch = cli([
+    "pin-git-ref", repository, "origin", "refs/heads/replacement",
+  ]).trim()
+  guard moved == second && branch == second && moved != pinned else {
+    fail("Moved tag or remote branch did not report the new commit")
+  }
+  let blob = git(remote, ["rev-parse", second + ":service.json"])
+  ignore(git(remote, ["tag", "not-a-commit", blob]))
+  ignore(
+    cli(
+      ["pin-git-ref", repository, "origin", "refs/tags/not-a-commit"],
+      error="Remote Git ref does not identify a commit",
+    ),
+  )
+  guard git(repository, ordinary_refs) == refs_snapshot &&
+    @fs.read_file(fetch_head).binary() == fetch_snapshot else {
+    fail("Remote pin updated normal refs or FETCH_HEAD")
+  }
+  let new_plan = root + "/moved-pinned-plan.json"
+  let report = cli([
+    "plan-git-json", source, project, moved, selection, new_plan,
+  ])
+  guard report.contains(base + " -> " + second) else {
+    fail("New plan did not show the new commit")
+  }
+  ignore(git(repository, ["remote", "remove", "origin"]))
+  ignore(git(repository, ["gc", "--prune=now"]))
+  let replay = root + "/offline-pinned-plan.json"
+  ignore(cli(["plan-git-json", source, project, pinned, selection, replay]))
+  guard @fs.read_file(replay).binary() == @fs.read_file(first_plan).binary() else {
+    fail(
+      "The old plan changed after moving the tag and pruning unreachable objects",
+    )
+  }
+  let candidate = root + "/first-pinned-candidate"
+  ignore(cli(["export", first_plan, project, candidate]))
+  guard @fs.read_file(candidate + "/project/service.json").binary() ==
+    b"{\"http\":{\"retries\":3,\"timeout\":30}}\n" else {
+    fail("Offline export changed the selected version or local configuration")
+  }
+  ignore(
+    cli([
+      "accept-git",
+      source,
+      first_plan,
+      candidate + "/project",
+      root + "/accepted-pin.json",
+    ]),
+  )
+}
+
+///|
 async fn main {
   let root = @fs.tmpdir(prefix="moongraft-git-")
   check_parameterized_lifecycle(root)
   check_json_lifecycle(root)
+  check_remote_pin(root)
   let repository = root + "/template"
   @fs.mkdir(repository)
   ignore(git(repository, ["init", "--object-format=sha1"]))

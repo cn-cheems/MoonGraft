@@ -16,6 +16,8 @@ pub fn check_git_batch_report(String) -> Unit raise
 
 pub async fn export_result(@moongraft.Applied, String) -> Unit
 
+pub async fn pin_git_ref(String, String, String) -> GitVersion
+
 pub async fn read_bytes(String, limit? : Int32) -> Bytes
 
 pub async fn read_file(String, String) -> @moongraft.File

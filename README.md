@@ -6,7 +6,7 @@
 
 适合维护多个服务、库或应用模板的平台团队和开源维护者。可以直接使用本地 Git 模板，也可以接入已有生成器的渲染结果。
 
-当前支持从本地 Git 固定提交创建或绑定项目、保存模板来源、发现本地候选版本、规划升级、导出候选并记录已采用的新版本。
+当前支持从 Git 固定提交创建或绑定项目、保存模板来源、发现本地候选版本、固定远程分支或标签、规划升级、导出候选并记录已采用的新版本。
 可处理不同语言的普通文件，不等于兼容所有生成器或保证合并后业务语义正确。
 [真实模板两个版本的完整升级证据](integration/README.md)包含来源、渲染适配、业务测试和复现命令。
 
@@ -57,6 +57,19 @@ moon run cmd/main -- check-git source-v1.json <commit-v2>
 Git LFS 指针按提交中的原始字节保存，实际对象由使用者另行获取。来源记录绑定当前机器上的仓库路径。
 Git 模板路径和文件沿用下文的边界。需要变量替换时可使用下文的参数化流程。
 运行 `moon run --deny-warn scripts/git-lifecycle.mbtx` 可验证这个流程。
+
+## 固定远程 Git 版本
+
+在已有的 SHA-1 模板仓库里，从已配置的远程获取一个完整分支或标签引用。命令标准输出为一行完整提交 SHA。
+
+```text
+moon run cmd/main -- pin-git-ref local-template origin refs/tags/v2
+moon run cmd/main -- plan-git source-v1.json generated/project <printed-sha> plan.json
+```
+
+也可指定 `refs/heads/release`，或将 SHA 交给 `capture-git`、`plan-git-json` 等命令。带注释标签会解析到其提交。若远端在查询与获取之间移动了引用，命令仍只请求原先公布的对象，取不到时会明确报错，可重新固定。
+
+本地仓库以 `refs/moongraft/pins/<sha>` 保留提交，供标签移动或离线时重放。该命令写入 Git 对象库及 MoonGraft 的保留引用。请保留这些引用以继续验证旧计划。现有分支、标签、远程跟踪引用和 `FETCH_HEAD` 保持原样。网络访问使用本机已配置的 Git 凭据与传输方式。程序接口为 `workspace.pin_git_ref`。 [Git fetch 文档](https://git-scm.com/docs/git-fetch)
 
 ## 参数化模板创建与升级
 
@@ -352,7 +365,7 @@ CI 集成可调用 `report-json plan.json` 或 `Plan::report_json()`。
 
 扫描仅明确排除根目录 `.git` 元数据。隐藏文件和 `.gitignore` 中的文件均会扫描；不会悄悄忽略构建产物。空目录、符号链接、特殊文件、非支持路径与超限输入均报错拒绝。
 
-当前不支持模板脚本执行、远程模板获取、自动重命名识别、Jinja/Cookiecutter 兼容、YAML 语义合并、原地更新、所有权/ACL/其他权限位保留、并发写入或断电持久性保证。目录扫描和导出要求调用者提供可信且独占使用的本地目录。
+当前不支持模板脚本执行、从任意 URL 自动创建模板仓库、自动重命名识别、Jinja/Cookiecutter 兼容、YAML 语义合并、原地更新、所有权/ACL/其他权限位保留、并发写入或断电持久性保证。目录扫描和导出要求调用者提供可信且独占使用的本地目录。
 
 长文本的完整差分超过预算时，MoonGraft 分别裁剪旧模板与本地版本、旧模板与新版之间相同的前后行，再在每个变更区间内计算差分。变更位置仍以旧模板为基准。每个差分表最多 262,144 个单元，扫描的行数上限保持 4,096。跨度过大的修改仍报告 `conflict:text-merge-limit`，可通过审阅明确选择结果。
 普通新计划使用版本 3，含参数迁移或 JSON 合并选项的计划使用版本 4。版本 1 和 2 归档继续按原差分规则重放，保留已有审阅决策。
@@ -361,7 +374,7 @@ CI 集成可调用 `report-json plan.json` 或 `Plan::report_json()`。
 
 这是参考 [Copier](https://github.com/copier-org/copier) 和 [Cruft](https://github.com/cruft/cruft) 工作流的新 MoonBit 实现。现有 [moon-new](https://github.com/moonbit-community/moon-new) 负责创建项目，[moonctl](https://github.com/moonbitstack/moonctl) 侧重服务代码生成，[MoonEdit](https://mooncakes.io/docs/vectie/moonedit) 提供编辑器与文本合并核心。MoonGraft 的边界是模板来源、目录级三方升级、审阅决策、连续版本基线和完整候选项目导出。[调研依据与不确定性](docs/ecosystem.md)。
 
-计划中的能力包括条件渲染、外部生成器适配和远程 Git 版本发现。
+计划中的能力包括条件渲染、外部生成器适配和远程 Git 候选版本枚举。
 
 ## 许可证与来源
 

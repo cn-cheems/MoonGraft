@@ -47,8 +47,8 @@ On POSIX hosts the adapter records executability and normalizes output modes to
 core-model executable file. Other permission bits, ownership and ACLs are not
 part of the managed model.
 
-No template execution, remote downloads, Jinja/Cookiecutter compatibility,
-automatic rename inference, schema-aware YAML merging, permissions/ACL
+No template execution, automatic repository cloning, Jinja/Cookiecutter
+compatibility, automatic rename inference, schema-aware YAML merging, permissions/ACL
 preservation, in-place updates, multi-writer locking, or crash durability claims.
 Export is for a trusted, exclusively accessed local workspace. CI support and
 actual execution results must be reported separately.
@@ -80,6 +80,12 @@ An explicit parameter migration relates the old and new render identities for
 one repository and subtree. JSON merging is selected by path and compares
 object keys, retaining number spelling and reporting conflicts as JSON Pointers.
 Both options are persisted in the plan and restored during refresh.
+
+Remote pinning reads the exact advertised branch or tag object ID from a
+configured remote, fetches that object, and peels it to a commit. A SHA-keyed
+local ref retains the commit for replay. Plan archives continue to record
+commits. A moved ref may cause acquisition to fail if Git can no longer serve
+the advertised object. [Git ref listing](https://git-scm.com/docs/git-ls-remote)
 
 ## Roadmap
 

@@ -9,6 +9,7 @@ let usage : String =
   #|create-git <source.json> <new-bundle-dir>
   #|relocate-git <source.json> <new-local-repo> <new-source.json>
   #|discover-git <source.json>
+  #|pin-git-ref <template-repo> <remote-name> <refs/heads/branch|refs/tags/tag>
   #|check-git <source.json> <target-commit-sha>
   #|plan-git <source.json> <project-dir> <target-commit-sha> <new-plan.json>
   #|plan-git-renames <source.json> <project-dir> <target-commit-sha> <renames.json> <new-plan.json>
@@ -141,6 +142,10 @@ async fn run(args : Array[String]) -> Unit {
           })
         })
       println(Json::array(versions).stringify())
+    }
+    ["pin-git-ref", repository, remote, refname] => {
+      let version = @workspace.pin_git_ref(repository, remote, refname)
+      println(version.revision)
     }
     ["relocate-git", input, repository, output] => {
       let source = @workspace.GitSource::decode(@workspace.read_text(input))
