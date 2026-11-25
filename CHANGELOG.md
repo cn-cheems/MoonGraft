@@ -20,6 +20,8 @@
 - Bounded changed-window diffs for long text files with localized edits.
 - Versioned literal template rendering with canonical parameters and exact
   Git baseline replay across project creation, planning, and adoption.
+- Explicit parameter migrations with validated renames, defaults and drops,
+  recorded in the plan and replayed during adoption.
 - Historical template adoption case with a disclosed compatibility recipe,
   whole-output checks, business regression tests and revision-bound CI evidence.
 

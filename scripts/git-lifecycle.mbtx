@@ -158,6 +158,72 @@ async fn check_parameterized_lifecycle(root : String) -> Unit {
   guard !@fs.exists(invalid) else {
     fail("Invalid baseline created an output bundle")
   }
+  let previous = repository + "/@{project}.conf"
+  let renamed = repository + "/@{service}.conf"
+  @fs.rename(previous, renamed, replace=false)
+  @fs.write_file(
+    repository + "/moongraft.render.json",
+    "[\"moongraft.render\",\"1\",[[\"service\",\"tier\"],[\"@{service}.conf\"]]]",
+  )
+  @fs.write_file(
+    renamed, "name=@{service}\nstatus=stable\nrevision=4\ntier=@{tier}\n",
+  )
+  let fourth = commit(repository, "Rename project parameter and introduce tier")
+  @fs.write_file(
+    renamed, "name=@{service}\nstatus=stable\nrevision=5\ntier=@{tier}\n",
+  )
+  let fifth = commit(repository, "Follow-up on the migrated template")
+  let rules = root + "/parameter-migration.json"
+  @fs.write_file(
+    rules, "[\"moongraft.parameter-migration\",\"1\",[[[\"project\",\"service\"]],[[\"tier\",\"standard\"]],[]]]",
+  )
+  let source = root + "/red-v3.json"
+  let project = root + "/red-candidate-v3/project"
+  let plan = root + "/migrate-parameters.json"
+  ignore(
+    cli(
+      ["plan-git", source, project, fourth, root + "/missing-migration.json"],
+      error="exact supplied parameters",
+    ),
+  )
+  let report = cli(["plan-git-parameters", source, project, fourth, rules, plan])
+  guard report.contains("parameter-rename\tproject\tservice") &&
+    report.contains("parameter-default\ttier") else {
+    fail("Migration was not visible in the review")
+  }
+  let refreshed = root + "/migrate-parameters-refreshed.json"
+  ignore(cli(["refresh", plan, project, refreshed]))
+  guard @fs.read_file(refreshed).binary() == @fs.read_file(plan).binary() else {
+    fail("Refresh failed to preserve the parameter migration")
+  }
+  let bundle = root + "/migrate-parameter-candidate"
+  ignore(cli(["export", refreshed, project, bundle]))
+  let candidate = bundle + "/project"
+  guard @fs.read_file(candidate + "/red.conf").text() ==
+    "name=red\nstatus=local\nrevision=4\ntier=standard\n" else {
+    fail("Migrated candidate did not preserve its local customization")
+  }
+  let adopted = root + "/red-v4.json"
+  ignore(cli(["accept-git", source, refreshed, candidate, adopted]))
+  ignore(cli(["verify-git-source", adopted]))
+  let rollback = root + "/migrate-parameter-rollback"
+  ignore(cli(["rollback-export", plan, candidate, rollback]))
+  guard @fs.read_file(rollback + "/baseline.json").binary() ==
+    @fs.read_file(root + "/red-candidate-v3/baseline.json").binary() &&
+    @fs.read_file(rollback + "/project/red.conf").binary() ==
+    @fs.read_file(project + "/red.conf").binary() else {
+    fail(
+      "Migration rollback did not restore the old template identity and snapshot",
+    )
+  }
+  let next_plan = root + "/red-post-migration.json"
+  let next_bundle = root + "/red-post-migration"
+  ignore(cli(["plan-git", adopted, candidate, fifth, next_plan]))
+  ignore(cli(["export", next_plan, candidate, next_bundle]))
+  guard @fs.read_file(next_bundle + "/project/red.conf").text() ==
+    "name=red\nstatus=local\nrevision=5\ntier=standard\n" else {
+    fail("The adopted recipe could not drive another upgrade")
+  }
 }
 
 ///|

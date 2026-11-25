@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn plan_parameter_upgrade(Baseline, Tree, Baseline, ParameterMigration, renames? : Array[FileRename]) -> Plan raise GraftError
+
 pub fn plan_update(Baseline, Tree, Baseline) -> Plan raise GraftError
 
 pub fn plan_update_with_renames(Baseline, Tree, Baseline, Array[FileRename]) -> Plan raise GraftError
@@ -127,6 +129,16 @@ pub fn OutputChange::equal(Self, Self) -> Bool
 pub fn OutputChange::not_equal(Self, Self) -> Bool
 pub fn OutputChange::to_repr(Self) -> @debug.Repr
 
+pub struct ParameterMigration {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ParameterMigration::apply(Self, RenderParameters) -> RenderParameters raise GraftError
+pub fn ParameterMigration::decode(String) -> Self raise GraftError
+pub fn ParameterMigration::encode(Self) -> String
+pub fn ParameterMigration::equal(Self, Self) -> Bool
+pub fn ParameterMigration::not_equal(Self, Self) -> Bool
+pub fn ParameterMigration::to_repr(Self) -> @debug.Repr
+
 pub struct Plan {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -146,6 +158,7 @@ pub fn Plan::next_baseline(Self) -> Baseline
 pub fn Plan::not_equal(Self, Self) -> Bool
 pub fn Plan::output_changes(Self) -> Array[OutputChange] raise GraftError
 pub fn Plan::output_json(Self) -> String raise GraftError
+pub fn Plan::parameter_migration(Self) -> ParameterMigration?
 pub fn Plan::prepare(Self, Tree, String) -> Applied raise GraftError
 pub fn Plan::project_drift(Self, Tree) -> Array[ProjectDrift]
 pub fn Plan::refresh(Self, Tree) -> Refreshed raise GraftError

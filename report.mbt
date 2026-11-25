@@ -54,6 +54,17 @@ pub fn Plan::report(self : Plan) -> String {
   output.write_string(
     "Revision: " + self.baseline.revision + " -> " + self.next.revision + "\n",
   )
+  if self.parameter_migration is Some(migration) {
+    for (from, to) in migration.renames {
+      output.write_string("parameter-rename\t" + from + "\t" + to + "\n")
+    }
+    for (name, _) in migration.defaults {
+      output.write_string("parameter-default\t" + name + "\n")
+    }
+    for name in migration.drops {
+      output.write_string("parameter-drop\t" + name + "\n")
+    }
+  }
   for rename in self.renames {
     output.write_string(
       "move\t" + rename.from_path + "\t" + rename.to_path + "\n",

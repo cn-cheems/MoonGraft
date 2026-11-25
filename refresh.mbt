@@ -17,6 +17,7 @@ pub fn Plan::refresh(self : Plan, current : Tree) -> Refreshed raise GraftError 
     self.next,
     self.renames,
     self.window_diff,
+    parameter_migration?=self.parameter_migration,
   )
   let retained = []
   let dropped = []

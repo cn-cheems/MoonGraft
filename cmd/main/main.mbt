@@ -12,6 +12,7 @@ let usage : String =
   #|check-git <source.json> <target-commit-sha>
   #|plan-git <source.json> <project-dir> <target-commit-sha> <new-plan.json>
   #|plan-git-renames <source.json> <project-dir> <target-commit-sha> <renames.json> <new-plan.json>
+  #|plan-git-parameters <source.json> <project-dir> <target-commit-sha> <migration.json> <new-plan.json>
   #|accept-git <source.json> <resolved-plan.json> <accepted-project-dir> <new-source.json>
   #|stage-git-batch <manifest.json> <new-output-dir>
   #|stage-git-batch-checked <manifest.json> <policy.json> <new-output-dir>
@@ -181,6 +182,21 @@ async fn run(args : Array[String]) -> Unit {
         @workspace.scan(project),
         revision,
         renames,
+      )
+      @workspace.write_new(output, plan.encode())
+      println(plan.report())
+    }
+    ["plan-git-parameters", input, project, revision, rules, output] => {
+      @workspace.require_outside(output, project)
+      let source = @workspace.GitSource::decode(@workspace.read_text(input))
+      @workspace.require_outside(output, source.repository)
+      let migration = @graft.ParameterMigration::decode(
+        @utf8.decode(@workspace.read_bytes(rules, limit=8192), ignore_bom=false),
+      )
+      let plan = source.plan_parameter_upgrade(
+        @workspace.scan(project),
+        revision,
+        migration,
       )
       @workspace.write_new(output, plan.encode())
       println(plan.report())

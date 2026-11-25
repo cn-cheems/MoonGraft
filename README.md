@@ -85,6 +85,22 @@ moon run cmd/main -- accept-git source-v1.json plan.json candidate/project sourc
 
 参数化来源记录也可用于批量规划和仓库迁移。目录树 API 为 `Tree::render_parameters`。使用 `moon run --deny-warn scripts/git-lifecycle.mbtx` 可验证同一模板以两个项目名创建、分别升级两轮并保留本地改动。
 
+## 模板参数迁移
+
+当新版描述文件改变参数名称时，用 `plan-git-parameters` 提交显式迁移。清单中的三组规则依次是重命名、为新参数赋默认值、删除旧参数。
+
+```json
+["moongraft.parameter-migration","1",[[["project","service"]],[["tier","standard"]],["obsolete"]]]
+```
+
+```text
+moon run cmd/main -- plan-git-parameters source-v1.json generated/project <commit-v2> migration.json plan.json
+moon run cmd/main -- export plan.json generated/project candidate
+moon run cmd/main -- accept-git source-v1.json plan.json candidate/project source-v2.json
+```
+
+规则同时作用于旧参数。未知来源、重复赋值、覆盖旧参数的默认值，以及与新版描述文件不一致的结果都会报错。迁移规则随计划保存，采用时重新渲染固定提交并核验目标基线，回退恢复旧文件树及旧基线。新来源记录可直接用于下一轮 `plan-git`。
+
 ## 模板仓库迁移
 
 换机器或移动模板仓库后，运行 `moon run cmd/main -- relocate-git source-v2.json local-template-copy relocated-source.json`。

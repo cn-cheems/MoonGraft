@@ -102,14 +102,44 @@ pub fn plan_update_with_renames(
 }
 
 ///|
+/// Plan a transition between parameter recipes for the same template source.
+pub fn plan_parameter_upgrade(
+  baseline : Baseline,
+  current : Tree,
+  next : Baseline,
+  migration : ParameterMigration,
+  renames~ : Array[FileRename] = [],
+) -> Plan raise GraftError {
+  plan_update_for_diff(
+    baseline,
+    current,
+    next,
+    renames,
+    true,
+    parameter_migration=migration,
+  )
+}
+
+///|
 fn plan_update_for_diff(
   baseline : Baseline,
   current : Tree,
   next : Baseline,
   renames : Array[FileRename],
   window_diff : Bool,
+  parameter_migration? : ParameterMigration,
 ) -> Plan raise GraftError {
-  guard baseline.template_id == next.template_id else {
+  if parameter_migration is Some(migration) {
+    let (repository, subdir, old_values) = render_identity(baseline.template_id)
+    let (new_repository, new_subdir, values) = render_identity(next.template_id)
+    guard repository == new_repository &&
+      subdir == new_subdir &&
+      migration.apply(old_values) == values else {
+      raise InvalidTemplate(
+        "Parameter migration differs from the target recipe or template source",
+      )
+    }
+  } else if baseline.template_id != next.template_id {
     raise InvalidTemplate(
       "template identifiers differ; an upgrade cannot silently change template ownership",
     )
@@ -138,6 +168,7 @@ fn plan_update_for_diff(
     merge_base,
     merge_current,
     window_diff,
+    parameter_migration,
     changes,
     decisions: [],
   }

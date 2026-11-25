@@ -411,9 +411,51 @@ pub async fn GitSource::accept_upgrade(
   }
   self.verify_parameterized_baseline()
   let next = plan.next_baseline()
-  let target = self.at(next.revision)
+  let target = match plan.parameter_migration() {
+    Some(migration) => self.capture_migrated(next.revision, migration)
+    None => self.at(next.revision)
+  }
   guard target.baseline == next else {
     raise WorkspaceError("Plan target differs from the pinned Git template")
   }
   target
+}
+
+///|
+async fn GitSource::capture_migrated(
+  self : GitSource,
+  revision : String,
+  migration : @graft.ParameterMigration,
+) -> GitSource {
+  guard self.parameters is Some(parameters) else {
+    raise WorkspaceError(
+      "Parameter migration requires a parameterized Git source",
+    )
+  }
+  capture_parameterized_git_source(
+    self.repository,
+    revision,
+    self.subdir,
+    migration.apply(parameters),
+  )
+}
+
+///|
+/// Rebuild the old template and render the target with a validated recipe transition.
+pub async fn GitSource::plan_parameter_upgrade(
+  self : GitSource,
+  current : @graft.Tree,
+  revision : String,
+  migration : @graft.ParameterMigration,
+  renames~ : Array[@graft.FileRename] = [],
+) -> @graft.Plan {
+  self.verify_replay()
+  let target = self.capture_migrated(revision, migration)
+  @graft.plan_parameter_upgrade(
+    self.baseline,
+    current,
+    target.baseline,
+    migration,
+    renames~,
+  )
 }

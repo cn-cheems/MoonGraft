@@ -236,6 +236,7 @@ pub struct Plan {
   priv merge_base : Tree
   priv merge_current : Tree
   priv window_diff : Bool
+  priv parameter_migration : ParameterMigration?
   priv changes : Array[Change]
   priv decisions : Array[Decision]
 } derive(Debug, Eq)
@@ -248,6 +249,11 @@ pub fn Plan::changes(self : Plan) -> Array[Change] {
 ///|
 pub fn Plan::renames(self : Plan) -> Array[FileRename] {
   self.renames.copy()
+}
+
+///|
+pub fn Plan::parameter_migration(self : Plan) -> ParameterMigration? {
+  self.parameter_migration
 }
 
 ///|
