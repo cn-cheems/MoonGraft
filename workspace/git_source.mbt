@@ -4,6 +4,7 @@ pub struct GitSource {
   repository : String
   subdir : String
   baseline : @graft.Baseline
+  priv parameters : @graft.RenderParameters?
 }
 
 ///|
@@ -17,42 +18,76 @@ fn require_git_sha(revision : String) -> Unit raise WorkspaceError {
 }
 
 ///|
-fn git_source_id(repository : String, subdir : String) -> String {
-  Json::array([Json::string(repository), Json::string(subdir)]).stringify()
+fn git_source_id(
+  repository : String,
+  subdir : String,
+  parameters : @graft.RenderParameters?,
+) -> String {
+  let fields = [Json::string(repository), Json::string(subdir)]
+  if parameters is Some(values) {
+    fields.push(Json::string("moongraft.render.v1"))
+    fields.push(Json::string(values.encode()))
+  }
+  Json::array(fields).stringify()
 }
 
 ///|
 pub fn GitSource::encode(self : GitSource) -> String {
-  Json::array([
-    Json::string("moongraft.git-source.v1"),
+  let fields = [
+    Json::string(
+      if self.parameters is Some(_) {
+        "moongraft.git-source.v2"
+      } else {
+        "moongraft.git-source.v1"
+      },
+    ),
     Json::string(self.repository),
     Json::string(self.subdir),
     Json::string(self.baseline.encode()),
-  ]).stringify()
+  ]
+  if self.parameters is Some(values) {
+    fields.push(Json::string("moongraft.render.v1"))
+    fields.push(Json::string(values.encode()))
+  }
+  Json::array(fields).stringify()
 }
 
 ///|
 pub fn GitSource::decode(text : String) -> GitSource raise {
-  guard @json.parse(text)
-    is Array(
+  let (repository, subdir, raw, parameters) = match @json.parse(text) {
+    Array(
       [
         String("moongraft.git-source.v1"),
         String(repository),
         String(subdir),
         String(raw),
       ]
-    ) else {
-    raise WorkspaceError("Expected a moongraft.git-source.v1 record")
+    ) => (repository, subdir, raw, None)
+    Array(
+      [
+        String("moongraft.git-source.v2"),
+        String(repository),
+        String(subdir),
+        String(raw),
+        String("moongraft.render.v1"),
+        String(values),
+      ]
+    ) =>
+      (repository, subdir, raw, Some(@graft.RenderParameters::decode(values)))
+    _ =>
+      raise WorkspaceError(
+        "Expected a supported MoonGraft Git source record and renderer version",
+      )
   }
   if !subdir.is_empty() {
     ignore(@graft.File::new(subdir, b""))
   }
   let baseline = @graft.Baseline::decode(raw)
   require_git_sha(baseline.revision)
-  guard baseline.template_id == git_source_id(repository, subdir) else {
+  guard baseline.template_id == git_source_id(repository, subdir, parameters) else {
     raise WorkspaceError("Git source and recorded baseline identity differ")
   }
-  { repository, subdir, baseline, }
+  { repository, subdir, baseline, parameters, }
 }
 
 ///|
@@ -153,7 +188,66 @@ pub async fn capture_git_source(
   {
     repository,
     subdir,
-    baseline: @graft.track(git_source_id(repository, subdir), revision, tree),
+    baseline: @graft.track(
+      git_source_id(repository, subdir, None),
+      revision,
+      tree,
+    ),
+    parameters: None,
+  }
+}
+
+///|
+/// Capture a pinned Git template with a deterministic, versioned render recipe.
+pub async fn capture_parameterized_git_source(
+  repository : String,
+  revision : String,
+  subdir : String,
+  parameters : @graft.RenderParameters,
+) -> GitSource {
+  let raw = capture_git_source(repository, revision, subdir)
+  let tree = raw.baseline.tree.render_parameters(parameters)
+  let recipe = Some(parameters)
+  let baseline = @graft.track(
+    git_source_id(raw.repository, subdir, recipe),
+    revision,
+    tree,
+  )
+  { ..raw, baseline, parameters: recipe, }
+}
+
+///|
+async fn GitSource::capture_at(
+  self : GitSource,
+  repository : String,
+  revision : String,
+) -> GitSource {
+  match self.parameters {
+    Some(values) =>
+      capture_parameterized_git_source(
+        repository,
+        revision,
+        self.subdir,
+        values,
+      )
+    None => capture_git_source(repository, revision, self.subdir)
+  }
+}
+
+///|
+/// Rebuild the pinned revision and verify its exact archived template baseline.
+pub async fn GitSource::verify_replay(self : GitSource) -> Unit {
+  guard self.at(self.baseline.revision).baseline == self.baseline else {
+    raise WorkspaceError(
+      "Rebuilt Git template differs from the recorded baseline",
+    )
+  }
+}
+
+///|
+async fn GitSource::verify_parameterized_baseline(self : GitSource) -> Unit {
+  if self.parameters is Some(_) {
+    self.verify_replay()
   }
 }
 
@@ -164,6 +258,7 @@ pub async fn GitSource::create_project(
   destination : String,
 ) -> Unit {
   require_outside(destination, self.repository)
+  self.verify_parameterized_baseline()
   let baseline = self.baseline
   let plan = @graft.plan_update(baseline, baseline.tree, baseline)
   export_result(plan.apply(baseline.tree), destination)
@@ -172,7 +267,7 @@ pub async fn GitSource::create_project(
 ///|
 /// Read an explicit target revision from the same source and subtree.
 pub async fn GitSource::at(self : GitSource, revision : String) -> GitSource {
-  let target = capture_git_source(self.repository, revision, self.subdir)
+  let target = self.capture_at(self.repository, revision)
   guard target.baseline.template_id == self.baseline.template_id else {
     raise WorkspaceError(
       "Git source location changed; capture a new source record explicitly",
@@ -198,11 +293,7 @@ pub async fn GitSource::relocate(
   self : GitSource,
   repository : String,
 ) -> GitSource {
-  let target = capture_git_source(
-    repository,
-    self.baseline.revision,
-    self.subdir,
-  )
+  let target = self.capture_at(repository, self.baseline.revision)
   guard target.baseline.tree == self.baseline.tree else {
     raise WorkspaceError(
       "Relocated template differs from the recorded baseline",
@@ -291,6 +382,7 @@ pub async fn GitSource::plan_upgrade_with_renames(
   revision : String,
   renames : Array[@graft.FileRename],
 ) -> @graft.Plan {
+  self.verify_parameterized_baseline()
   let target = self.at(revision)
   @graft.plan_update_with_renames(
     self.baseline,
@@ -317,6 +409,7 @@ pub async fn GitSource::accept_upgrade(
   guard original.baseline == self.baseline else {
     raise WorkspaceError("Plan starts from a different template baseline")
   }
+  self.verify_parameterized_baseline()
   let next = plan.next_baseline()
   let target = self.at(next.revision)
   guard target.baseline == next else {

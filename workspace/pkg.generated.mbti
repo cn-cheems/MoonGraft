@@ -10,6 +10,8 @@ pub async fn accept_git_batch(String, String) -> Json
 
 pub async fn capture_git_source(String, String, String) -> GitSource
 
+pub async fn capture_parameterized_git_source(String, String, String, @moongraft.RenderParameters) -> GitSource
+
 pub fn check_git_batch_report(String) -> Unit raise
 
 pub async fn export_result(@moongraft.Applied, String) -> Unit
@@ -46,6 +48,7 @@ pub struct GitSource {
   repository : String
   subdir : String
   baseline : @moongraft.Baseline
+  // private fields
 }
 pub async fn GitSource::accept_upgrade(Self, @moongraft.Plan, @moongraft.Tree) -> Self
 pub async fn GitSource::at(Self, String) -> Self
@@ -57,6 +60,7 @@ pub fn GitSource::inspect_project(Self, @moongraft.Tree) -> @moongraft.Plan rais
 pub async fn GitSource::plan_upgrade(Self, @moongraft.Tree, String) -> @moongraft.Plan
 pub async fn GitSource::plan_upgrade_with_renames(Self, @moongraft.Tree, String, Array[@moongraft.FileRename]) -> @moongraft.Plan
 pub async fn GitSource::relocate(Self, String) -> Self
+pub async fn GitSource::verify_replay(Self) -> Unit
 
 pub struct GitVersion {
   refname : String

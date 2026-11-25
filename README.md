@@ -55,8 +55,35 @@ moon run cmd/main -- check-git source-v1.json <commit-v2>
 新项目在 `generated/project`。Git 适配器直接读取提交中的 blob，保留文件原字节，
 工作区中的未提交修改、Git 过滤器及模板钩子均不参与生成。需要本机 Git。
 Git LFS 指针按提交中的原始字节保存，实际对象由使用者另行获取。来源记录绑定当前机器上的仓库路径。
-Git 模板路径和文件沿用下文的边界。变量替换、条件路径和自动拉取远程版本属于后续能力。
+Git 模板路径和文件沿用下文的边界。需要变量替换时可使用下文的参数化流程。
 运行 `moon run --deny-warn scripts/git-lifecycle.mbtx` 可验证这个流程。
+
+## 参数化模板创建与升级
+
+在模板根目录或所选子目录提交 `moongraft.render.json`。以下声明要求两个参数，并指定 `README.md` 与原始路径 `src/@{project}.txt` 中的内容参与替换。
+
+```json
+["moongraft.render","1",[["project","title"],["README.md","src/@{project}.txt"]]]
+```
+
+在调用方保存 `parameters.json`。参数只用于构建产物，来源记录会保存明文参数。
+
+```json
+["moongraft.parameters","1",[["project","demo"],["title","团队服务"]]]
+```
+
+```text
+moon run cmd/main -- capture-git-rendered local-template <commit-v1> . parameters.json source-v1.json
+moon run cmd/main -- verify-git-source source-v1.json
+moon run cmd/main -- create-git source-v1.json generated
+moon run cmd/main -- plan-git source-v1.json generated/project <commit-v2> plan.json
+moon run cmd/main -- export plan.json generated/project candidate
+moon run cmd/main -- accept-git source-v1.json plan.json candidate/project source-v2.json
+```
+
+版本 1 渲染器对所有路径和显式选中的 UTF-8 文件执行一次 `@{name}` 替换，其他文件内容按原字节保留。描述文件留在模板仓库。发现未知占位符、参数不匹配、非法路径或路径碰撞时会拒绝渲染。参数值最多 128 个 UTF-16 代码单元，编码后的整组参数最多 512 个。目标提交须继续声明同一组参数。参数化来源记录固定渲染器版本、参数、Git 提交及基线。创建、规划和采用前会复核旧基线，规划及采用用同一组参数渲染目标提交。
+
+参数化来源记录也可用于批量规划和仓库迁移。目录树 API 为 `Tree::render_parameters`。使用 `moon run --deny-warn scripts/git-lifecycle.mbtx` 可验证同一模板以两个项目名创建、分别升级两轮并保留本地改动。
 
 ## 模板仓库迁移
 
@@ -298,7 +325,7 @@ CI 集成可调用 `report-json plan.json` 或 `Plan::report_json()`。
 
 这是参考 [Copier](https://github.com/copier-org/copier) 和 [Cruft](https://github.com/cruft/cruft) 工作流的新 MoonBit 实现。现有 [moon-new](https://github.com/moonbit-community/moon-new) 负责创建项目，[moonctl](https://github.com/moonbitstack/moonctl) 侧重服务代码生成，[MoonEdit](https://mooncakes.io/docs/vectie/moonedit) 提供编辑器与文本合并核心。MoonGraft 的边界是模板来源、目录级三方升级、审阅决策、连续版本基线和完整候选项目导出。[调研依据与不确定性](docs/ecosystem.md)。
 
-计划中的能力包括参数化生成和远程 Git 版本发现。
+计划中的能力包括条件渲染、外部生成器适配和远程 Git 版本发现。
 
 ## 许可证与来源
 

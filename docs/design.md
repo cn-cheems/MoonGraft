@@ -1,8 +1,9 @@
 # MoonGraft v0.1 design
 
 MoonGraft upgrades an existing project from an explicitly recorded, rendered
-template baseline to a new rendered template. It owns directory-level lifecycle
-semantics rather than template rendering or service-specific code generation.
+template baseline to a new rendered template. The directory-level lifecycle
+works with committed templates, versioned literal rendering, and trees
+produced by an external generator.
 
 ## Users and complete workflows
 
@@ -70,11 +71,16 @@ Conflicts and decisions use the destination path, while conflict details retain
 the original paths. Freshness checks and rollback use the original project
 snapshot. Policy checks use the actual output paths.
 
+Parameterized Git records bind the committed subtree, renderer version and
+canonical parameters to the rendered baseline. Creating and adopting projects
+replays the pinned baseline. Upgrades render the target revision with the same
+recipe, so the merge engine compares three concrete file trees.
+
 ## Roadmap
 
 1. Complete local baseline → plan → resolve → export → next-baseline workflow.
 2. Extend review output for structural changes and explicit moves.
-3. Extend the implemented local Git source with pinned generator adapters,
-   replayable parameters, and remote version discovery.
+3. Extend parameterized Git sources with external generator adapters and remote
+   version discovery.
 4. Batch repository upgrades and CI integration, with measured behavior on real
    consumers before making productivity or performance claims.

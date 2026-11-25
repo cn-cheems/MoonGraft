@@ -175,6 +175,15 @@ pub struct Refreshed {
   dropped : Array[String]
 }
 
+pub struct RenderParameters {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn RenderParameters::decode(String) -> Self raise GraftError
+pub fn RenderParameters::encode(Self) -> String
+pub fn RenderParameters::equal(Self, Self) -> Bool
+pub fn RenderParameters::not_equal(Self, Self) -> Bool
+pub fn RenderParameters::to_repr(Self) -> @debug.Repr
+
 pub(all) enum Resolution {
   KeepLocal
   TakeTemplate
@@ -195,6 +204,7 @@ pub fn Tree::files(Self) -> Array[File]
 pub fn Tree::get(Self, String) -> File?
 pub fn Tree::new(Array[File]) -> Self raise GraftError
 pub fn Tree::not_equal(Self, Self) -> Bool
+pub fn Tree::render_parameters(Self, RenderParameters) -> Self raise GraftError
 pub fn Tree::to_repr(Self) -> @debug.Repr
 
 // Type aliases

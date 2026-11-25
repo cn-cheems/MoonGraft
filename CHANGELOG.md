@@ -17,6 +17,8 @@
 - Explicit file moves that carry local customizations across template paths and
   preserve conflict review, policy checks, and exact rollback.
 - Bounded changed-window diffs for long text files with localized edits.
+- Versioned literal template rendering with canonical parameters and exact
+  Git baseline replay across project creation, planning, and adoption.
 - Historical template adoption case with a disclosed compatibility recipe,
   whole-output checks, business regression tests and revision-bound CI evidence.
 
@@ -33,6 +35,5 @@
 - Formatting/interface checks, strict portable tests, actual native CLI tests and
   package consumer execution in the cross-OS CI workflow.
 
-This is a local-workflow alpha, not a Mooncakes release. Remote version discovery,
-and parameterized generation remain
-future work. See README for input limits and platform boundaries.
+This is a local-workflow alpha. Remote version discovery and external renderer
+integration remain future work. See README for input limits and platform boundaries.

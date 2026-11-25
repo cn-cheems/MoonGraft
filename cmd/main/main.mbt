@@ -3,6 +3,8 @@ let usage : String =
   #|MoonGraft — project template management and reviewable upgrades
   #|
   #|capture-git <local-repo> <commit-sha> <subdir-or-dot> <new-source.json>
+  #|capture-git-rendered <local-repo> <commit-sha> <subdir-or-dot> <parameters.json> <new-source.json>
+  #|verify-git-source <source.json>
   #|link-git <local-repo> <commit-sha> <subdir-or-dot> <existing-project-dir> <new-source.json>
   #|create-git <source.json> <new-bundle-dir>
   #|relocate-git <source.json> <new-local-repo> <new-source.json>
@@ -81,6 +83,32 @@ async fn run(args : Array[String]) -> Unit {
       @workspace.require_outside(output, source.repository)
       @workspace.write_new(output, source.encode())
       println("Recorded Git template source: " + output)
+    }
+    ["capture-git-rendered", repository, revision, subdir, params_path, output] => {
+      let params = @graft.RenderParameters::decode(
+        @utf8.decode(
+          @workspace.read_bytes(params_path, limit=8192),
+          ignore_bom=false,
+        ),
+      )
+      let source = @workspace.capture_parameterized_git_source(
+        repository,
+        revision,
+        if subdir == "." {
+          ""
+        } else {
+          subdir
+        },
+        params,
+      )
+      @workspace.require_outside(output, source.repository)
+      @workspace.write_new(output, source.encode())
+      println("Recorded pinned rendered template source: " + output)
+    }
+    ["verify-git-source", input] => {
+      let source = @workspace.GitSource::decode(@workspace.read_text(input))
+      source.verify_replay()
+      println("Rebuilt template matches the recorded baseline")
     }
     ["link-git", repository, revision, subdir, project, output] => {
       @workspace.require_outside(output, project)

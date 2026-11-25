@@ -51,8 +51,119 @@ async fn cli(args : Array[String], error? : String) -> String {
 }
 
 ///|
+async fn check_parameterized_lifecycle(root : String) -> Unit {
+  let repository = root + "/parameterized-template"
+  @fs.mkdir(repository)
+  ignore(git(repository, ["init", "--object-format=sha1"]))
+  ignore(git(repository, ["config", "core.autocrlf", "false"]))
+  @fs.write_file(
+    repository + "/moongraft.render.json",
+    "[\"moongraft.render\",\"1\",[[\"project\"],[\"@{project}.conf\"]]]",
+  )
+  @fs.write_file(repository + "/asset.bin", b"\x00\xff@{project}")
+  let revisions = []
+  for version in ["1", "2", "3"] {
+    @fs.write_file(
+      repository + "/@{project}.conf",
+      "name=@{project}\nstatus=stable\nrevision=" + version + "\n",
+    )
+    revisions.push(commit(repository, "Template version " + version))
+  }
+  @fs.write_file(
+    repository + "/@{project}.conf",
+    "dirty checkout must be ignored",
+  )
+  for name in ["red", "blue"] {
+    let params = root + "/" + name + "-parameters.json"
+    @fs.write_file(
+      params,
+      "[\"moongraft.parameters\",\"1\",[[\"project\",\"" + name + "\"]]]",
+    )
+    let prefix = root + "/" + name
+    let mut source = prefix + "-v1.json"
+    ignore(
+      cli([
+        "capture-git-rendered",
+        repository,
+        revisions[0],
+        ".",
+        params,
+        source,
+      ]),
+    )
+    ignore(cli(["verify-git-source", source]))
+    let generated = prefix + "-generated"
+    ignore(cli(["create-git", source, generated]))
+    let mut project = generated + "/project"
+    guard @fs.read_file(project + "/" + name + ".conf").text() ==
+      "name=" + name + "\nstatus=stable\nrevision=1\n" &&
+      @fs.read_file(project + "/asset.bin").binary() == b"\x00\xff@{project}" &&
+      !@fs.exists(project + "/moongraft.render.json") else {
+      fail("Rendered project differs from the pinned inputs")
+    }
+    @fs.write_file(
+      project + "/" + name + ".conf",
+      "name=" + name + "\nstatus=local\nrevision=1\n",
+    )
+    for index in 1..<revisions.length() {
+      let version = (index + 1).to_string()
+      let plan = prefix + "-plan-v" + version + ".json"
+      ignore(cli(["plan-git", source, project, revisions[index], plan]))
+      let bundle = prefix + "-candidate-v" + version
+      ignore(cli(["export", plan, project, bundle]))
+      project = bundle + "/project"
+      guard @fs.read_file(project + "/" + name + ".conf").text() ==
+        "name=" + name + "\nstatus=local\nrevision=" + version + "\n" else {
+        fail(
+          "Parameterized upgrade failed to preserve the project's local change",
+        )
+      }
+      let next = prefix + "-v" + version + ".json"
+      ignore(cli(["accept-git", source, plan, project, next]))
+      let direct = prefix + "-direct-v" + version + ".json"
+      ignore(
+        cli([
+          "capture-git-rendered",
+          repository,
+          revisions[index],
+          ".",
+          params,
+          direct,
+        ]),
+      )
+      guard @fs.read_file(next).binary() == @fs.read_file(direct).binary() else {
+        fail("Adopted parameterized source differs from a fresh render")
+      }
+      source = next
+    }
+  }
+  let tampered = root + "/tampered-parameterized-source.json"
+  let original = @fs.read_file(root + "/red-v1.json").text()
+  let changed = original.replace_all(old="737461626c65", new="7374616c65")
+  guard changed != original else { fail("Missing baseline edit fixture") }
+  @fs.write_file(tampered, changed)
+  ignore(
+    cli(
+      ["verify-git-source", tampered],
+      error="differs from the recorded baseline",
+    ),
+  )
+  let invalid = root + "/tampered-generated"
+  ignore(
+    cli(
+      ["create-git", tampered, invalid],
+      error="differs from the recorded baseline",
+    ),
+  )
+  guard !@fs.exists(invalid) else {
+    fail("Invalid baseline created an output bundle")
+  }
+}
+
+///|
 async fn main {
   let root = @fs.tmpdir(prefix="moongraft-git-")
+  check_parameterized_lifecycle(root)
   let repository = root + "/template"
   @fs.mkdir(repository)
   ignore(git(repository, ["init", "--object-format=sha1"]))

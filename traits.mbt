@@ -32,6 +32,12 @@ pub extend FileRename with @debug.Debug::{to_repr}
 pub extend FileRename with Eq::{equal, not_equal}
 
 ///|
+pub extend RenderParameters with @debug.Debug::{to_repr}
+
+///|
+pub extend RenderParameters with Eq::{equal, not_equal}
+
+///|
 pub extend ChangeKind with @debug.Debug::{to_repr}
 
 ///|
