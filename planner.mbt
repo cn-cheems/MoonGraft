@@ -1,5 +1,10 @@
 ///|
-fn classify(base : File?, ours : File?, remote : File?) -> (ChangeKind, File?) {
+fn classify(
+  base : File?,
+  ours : File?,
+  remote : File?,
+  window_diff : Bool,
+) -> (ChangeKind, File?) {
   if ours == remote {
     return (if base == ours { Unchanged } else { TookTemplate }, ours)
   }
@@ -14,7 +19,8 @@ fn classify(base : File?, ours : File?, remote : File?) -> (ChangeKind, File?) {
     (Some(_), None, Some(_)) => (Conflict(ProjectDeleted), None)
     (Some(_), Some(_), None) => (Conflict(TemplateDeleted), None)
     (Some(b), Some(l), Some(r)) =>
-      match merge_content(b.content, l.content, r.content) {
+      match
+        merge_content(b.content, l.content, r.content, allow_window=window_diff) {
         Ok(content) =>
           (
             Merged,
@@ -92,6 +98,17 @@ pub fn plan_update_with_renames(
   next : Baseline,
   renames : Array[FileRename],
 ) -> Plan raise GraftError {
+  plan_update_for_diff(baseline, current, next, renames, true)
+}
+
+///|
+fn plan_update_for_diff(
+  baseline : Baseline,
+  current : Tree,
+  next : Baseline,
+  renames : Array[FileRename],
+  window_diff : Bool,
+) -> Plan raise GraftError {
   guard baseline.template_id == next.template_id else {
     raise InvalidTemplate(
       "template identifiers differ; an upgrade cannot silently change template ownership",
@@ -109,7 +126,7 @@ pub fn plan_update_with_renames(
     let kind = if ours is None && renames.any(rename => rename.to_path == path) {
       Conflict(RenameSourceDeleted)
     } else {
-      classify(merge_base.get(path), ours, next.tree.get(path)).0
+      classify(merge_base.get(path), ours, next.tree.get(path), window_diff).0
     }
     changes.push({ path, kind, })
   }
@@ -120,6 +137,7 @@ pub fn plan_update_with_renames(
     renames,
     merge_base,
     merge_current,
+    window_diff,
     changes,
     decisions: [],
   }
@@ -208,6 +226,7 @@ fn Plan::materialize(self : Plan) -> Tree raise GraftError {
       self.merge_base.get(change.path),
       ours,
       remote,
+      self.window_diff,
     )
     let mut selected = automatic
     if change.kind is Conflict(_) {

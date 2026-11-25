@@ -196,13 +196,13 @@ pub fn Plan::encode(self : Plan) -> String {
     baseline_json(self.next),
     Json::array(self.decisions.map(decision_json)),
   ]
-  if self.renames.is_empty() {
+  if !self.window_diff && self.renames.is_empty() {
     archive("moongraft.plan", Json::array(fields))
   } else {
     fields.push(rename_rows(self.renames))
     Json::array([
       Json::string("moongraft.plan"),
-      Json::string("2"),
+      Json::string(if self.window_diff { "3" } else { "2" }),
       Json::array(fields),
     ]).stringify() +
     "\n"
@@ -211,7 +211,7 @@ pub fn Plan::encode(self : Plan) -> String {
 
 ///|
 pub fn Plan::decode(source : String) -> Plan raise GraftError {
-  let (base, current, next, decisions, renames) = match
+  let (base, current, next, decisions, renames, window_diff) = match
     parse_archive_json(source) {
     Array(
       [
@@ -219,31 +219,34 @@ pub fn Plan::decode(source : String) -> Plan raise GraftError {
         String("1"),
         Array([base, current, next, Array(decisions)]),
       ]
-    ) => (base, current, next, decisions, [])
+    ) => (base, current, next, decisions, [], false)
     Array(
       [
         String("moongraft.plan"),
-        String("2"),
+        String(version),
         Array([base, current, next, Array(decisions), mappings]),
       ]
-    ) => {
+    ) if version == "2" || version == "3" => {
       let renames = parse_renames(mappings)
-      guard !renames.is_empty() else {
+      guard version == "3" || !renames.is_empty() else {
         raise InvalidArchive("version 2 plans require file moves")
       }
-      (base, current, next, decisions, renames)
+      (base, current, next, decisions, renames, version == "3")
     }
     _ =>
-      raise InvalidArchive("expected a version 1 or 2 moongraft.plan archive")
+      raise InvalidArchive(
+        "expected a version 1, 2 or 3 moongraft.plan archive",
+      )
   }
   guard decisions.length() <= 6144 else {
     raise LimitExceeded("more than 6144 decisions")
   }
-  let plan = plan_update_with_renames(
+  let plan = plan_update_for_diff(
     parse_baseline(base),
     parse_tree(current),
     parse_baseline(next),
     renames,
+    window_diff,
   )
   plan.resolve(decisions.map(parse_decision))
 }

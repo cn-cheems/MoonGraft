@@ -235,6 +235,7 @@ pub struct Plan {
   priv renames : Array[FileRename]
   priv merge_base : Tree
   priv merge_current : Tree
+  priv window_diff : Bool
   priv changes : Array[Change]
   priv decisions : Array[Decision]
 } derive(Debug, Eq)

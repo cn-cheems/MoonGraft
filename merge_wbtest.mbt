@@ -88,3 +88,46 @@ test "large insertion and deletion translate positions and dense changes stay bo
     Err(TextMergeLimit),
   )
 }
+
+///|
+test "legacy plans replay long-file decisions with the original diff rules" {
+  let padding = b"repeat\n".repeat(1024)
+  for moved in [false, true] {
+    let destination = if moved { "moved.txt" } else { "long.txt" }
+    let baseline = track(
+      "app",
+      "v1",
+      Tree::new([File::new("long.txt", b"first\n" + padding + b"last")]),
+    )
+    let current = Tree::new([
+      File::new("long.txt", b"FIRST\n" + padding + b"last"),
+    ])
+    let next = track(
+      "app",
+      "v2",
+      Tree::new([File::new(destination, b"first\n" + padding + b"LAST")]),
+    )
+    let moves = if moved {
+      [FileRename::new("long.txt", destination)]
+    } else {
+      []
+    }
+    let old_plan = plan_update_for_diff(baseline, current, next, moves, false)
+    assert_eq(old_plan.conflict_detail(destination).reason, TextMergeLimit)
+    let reviewed = old_plan.resolve([Decision::new(destination, KeepLocal)])
+    let archive = reviewed.encode()
+    let replay = Plan::decode(archive)
+    assert_eq(replay.encode(), archive)
+    assert_eq(replay.refresh(current).retained, [destination])
+    assert_eq(
+      replay.apply(current).tree,
+      Tree::new([File::new(destination, b"FIRST\n" + padding + b"last")]),
+    )
+    let updated = plan_update_with_renames(baseline, current, next, moves)
+    assert_eq(updated.unresolved(), [])
+    assert_eq(
+      Plan::decode(updated.encode()).apply(current).tree,
+      Tree::new([File::new(destination, b"FIRST\n" + padding + b"LAST")]),
+    )
+  }
+}

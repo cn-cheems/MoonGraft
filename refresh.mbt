@@ -11,11 +11,12 @@ pub struct Refreshed {
 /// is still a conflict and all three file versions and reason match exactly.
 /// Changes outside conflicts may be incorporated, never silently overwritten.
 pub fn Plan::refresh(self : Plan, current : Tree) -> Refreshed raise GraftError {
-  let updated = plan_update_with_renames(
+  let updated = plan_update_for_diff(
     self.baseline,
     current,
     self.next,
     self.renames,
+    self.window_diff,
   )
   let retained = []
   let dropped = []

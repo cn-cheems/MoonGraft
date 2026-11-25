@@ -88,10 +88,12 @@ fn fits_line_diff(base_length : Int32, changed_length : Int32) -> Bool {
 fn bounded_line_diff(
   base : Array[Bytes],
   changed : Array[Bytes],
+  allow_window : Bool,
 ) -> Array[Edit]? {
   if fits_line_diff(base.length(), changed.length()) {
     return Some(diff_lines(base, changed))
   }
+  guard allow_window else { return None }
   let common = Int32::min(base.length(), changed.length())
   let mut start = 0
   while start < common && base[start] == changed[start] {
@@ -141,6 +143,7 @@ fn merge_content(
   base : Bytes,
   ours : Bytes,
   remote : Bytes,
+  allow_window~ : Bool = true,
 ) -> Result[Bytes, ConflictReason] {
   if ours == remote {
     return Ok(ours)
@@ -169,8 +172,8 @@ fn merge_content(
   let b = lines(ours)
   let c = lines(remote)
   // The line scan bounds array lengths and makes the table size calculation safe.
-  guard bounded_line_diff(a, b) is Some(edits) &&
-    bounded_line_diff(a, c) is Some(incoming_edits) else {
+  guard bounded_line_diff(a, b, allow_window) is Some(edits) &&
+    bounded_line_diff(a, c, allow_window) is Some(incoming_edits) else {
     return Err(TextMergeLimit)
   }
   for incoming in incoming_edits {

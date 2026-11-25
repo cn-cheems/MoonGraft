@@ -130,9 +130,9 @@ test "move declarations reject invalid or occupied destinations and serialize de
   ])
   assert_eq(plan.encode(), reversed.encode())
   assert_eq(plan.report_json(), reversed.report_json())
-  let legacy = @graft.plan_update(old, old.tree, next)
-  assert_eq(@graft.Plan::decode(legacy.encode()).encode(), legacy.encode())
-  assert_true(legacy.encode().has_prefix("[\"moongraft.plan\",\"1\","))
+  let ordinary = @graft.plan_update(old, old.tree, next)
+  assert_eq(@graft.Plan::decode(ordinary.encode()).encode(), ordinary.encode())
+  assert_true(ordinary.encode().has_prefix("[\"moongraft.plan\",\"3\","))
   let malformed = plan
     .encode()
     .replace_all(
