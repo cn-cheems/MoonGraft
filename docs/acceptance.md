@@ -34,8 +34,10 @@ revisions, batch isolation between ready, conflicting and invalid entries,
 candidate rejection after an unexpected edit, retry, and two
 successive upgrades with a preserved business file. It also exercises parameter
 migration and rollback, then merges independent JSON changes through both CLI
-entry points. A second JSON upgrade checks the conflict pointer, rejects export
-before creating the candidate, and exports a manually resolved replacement.
+entry points. A second JSON upgrade shows the conflicting values, blocks
+unresolved export, then applies a field decision, exports and adopts the candidate
+while preserving an independent upstream field. Whole-file replacement is also
+covered.
 The combined batch compares single-project and batch plan archives, isolates a
 moved-file JSON conflict, retries with the same rules and policy, then accepts
 the verified candidate. It also rejects a policy altered after staging.

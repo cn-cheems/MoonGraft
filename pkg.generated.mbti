@@ -130,6 +130,34 @@ pub fn FileRename::new(String, String) -> Self
 pub fn FileRename::not_equal(Self, Self) -> Bool
 pub fn FileRename::to_repr(Self) -> @debug.Repr
 
+pub struct JsonFieldConflict {
+  pointer : String
+  base : String?
+  project : String?
+  template : String?
+} derive(Eq, @debug.Debug)
+pub fn JsonFieldConflict::equal(Self, Self) -> Bool
+pub fn JsonFieldConflict::not_equal(Self, Self) -> Bool
+pub fn JsonFieldConflict::to_repr(Self) -> @debug.Repr
+
+pub struct JsonFieldDecision {
+  pointer : String
+  resolution : JsonFieldResolution
+} derive(Eq, @debug.Debug)
+pub fn JsonFieldDecision::equal(Self, Self) -> Bool
+pub fn JsonFieldDecision::new(String, JsonFieldResolution) -> Self
+pub fn JsonFieldDecision::not_equal(Self, Self) -> Bool
+pub fn JsonFieldDecision::to_repr(Self) -> @debug.Repr
+
+pub(all) enum JsonFieldResolution {
+  KeepLocalField
+  TakeTemplateField
+  SetJsonField(String)
+} derive(Eq, @debug.Debug)
+pub fn JsonFieldResolution::equal(Self, Self) -> Bool
+pub fn JsonFieldResolution::not_equal(Self, Self) -> Bool
+pub fn JsonFieldResolution::to_repr(Self) -> @debug.Repr
+
 pub(all) enum OutputChange {
   Added(String, Int32, Bool)
   Removed(String, Int32, Bool)
@@ -165,6 +193,8 @@ pub fn Plan::drift_json(Self, Tree) -> String
 pub fn Plan::encode(Self) -> String
 pub fn Plan::equal(Self, Self) -> Bool
 pub fn Plan::json_conflicts(Self, String) -> Array[String]
+pub fn Plan::json_field_conflict(Self, String, String) -> JsonFieldConflict raise GraftError
+pub fn Plan::json_field_decisions(Self, String) -> Array[JsonFieldDecision]
 pub fn Plan::json_merge_paths(Self) -> Array[String]
 pub fn Plan::next_baseline(Self) -> Baseline
 pub fn Plan::not_equal(Self, Self) -> Bool
@@ -178,11 +208,13 @@ pub fn Plan::renames(Self) -> Array[FileRename]
 pub fn Plan::report(Self) -> String
 pub fn Plan::report_json(Self) -> String
 pub fn Plan::resolve(Self, Array[Decision]) -> Self raise GraftError
+pub fn Plan::resolve_json_fields(Self, String, Array[JsonFieldDecision]) -> Self raise GraftError
 pub fn Plan::resolve_review(Self, String) -> Self raise GraftError
 pub fn Plan::review_template(Self) -> String
 pub fn Plan::rollback(Self, Tree) -> Applied raise GraftError
 pub fn Plan::to_repr(Self) -> @debug.Repr
 pub fn Plan::unresolved(Self) -> Array[String]
+pub fn Plan::unresolved_json_pointers(Self, String) -> Array[String]
 pub fn Plan::upgrade_rules(Self) -> UpgradeRules
 pub fn Plan::validate(Self, Tree) -> Unit raise GraftError
 
@@ -199,6 +231,8 @@ pub struct Refreshed {
   plan : Plan
   retained : Array[String]
   dropped : Array[String]
+  retained_json_fields : Array[(String, String)]
+  dropped_json_fields : Array[(String, String)]
 }
 
 pub struct RenderParameters {

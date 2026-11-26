@@ -17,7 +17,9 @@ pub fn Plan::report_json(self : Plan) -> String {
   let fields = [
     Json::string("moongraft.report"),
     Json::string(
-      if !self.json_changes.is_empty() {
+      if self.decisions.any(d => d.resolution is JsonFields(_)) {
+        "4"
+      } else if !self.json_changes.is_empty() {
         "3"
       } else if self.renames.is_empty() {
         "1"
@@ -99,16 +101,21 @@ pub fn Plan::report(self : Plan) -> String {
     for decision in self.decisions {
       if decision.path == change.path {
         let action = match decision.resolution {
-          KeepLocal => "keep-local"
-          TakeTemplate => "take-template"
-          Replace(_) => "replace"
-          Delete => "delete"
+          WholeFile(KeepLocal) => "keep-local"
+          WholeFile(TakeTemplate) => "take-template"
+          WholeFile(Replace(_)) => "replace"
+          WholeFile(Delete) => "delete"
+          JsonFields(fields) =>
+            "json-fields " +
+            fields.length().to_string() +
+            "/" +
+            self.json_conflicts(change.path).length().to_string()
         }
         output.write_string("\tresolved:" + action)
       }
     }
     output.write_string("\n")
-    for pointer in self.json_conflicts(change.path) {
+    for pointer in self.unresolved_json_pointers(change.path) {
       output.write_string(
         "json-conflict\t" +
         change.path +

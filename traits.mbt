@@ -80,6 +80,24 @@ pub extend Decision with @debug.Debug::{to_repr}
 pub extend Decision with Eq::{equal, not_equal}
 
 ///|
+pub extend JsonFieldResolution with @debug.Debug::{to_repr}
+
+///|
+pub extend JsonFieldResolution with Eq::{equal, not_equal}
+
+///|
+pub extend JsonFieldDecision with @debug.Debug::{to_repr}
+
+///|
+pub extend JsonFieldDecision with Eq::{equal, not_equal}
+
+///|
+pub extend JsonFieldConflict with @debug.Debug::{to_repr}
+
+///|
+pub extend JsonFieldConflict with Eq::{equal, not_equal}
+
+///|
 pub extend Plan with @debug.Debug::{to_repr}
 
 ///|

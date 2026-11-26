@@ -26,5 +26,5 @@ pub fn Plan::resolve_review(
   guard decisions.length() <= 6144 else {
     raise LimitExceeded("more than 6144 review decisions")
   }
-  self.resolve(decisions.map(parse_decision))
+  self.resolve_combined(decisions.map(parse_decision))
 }

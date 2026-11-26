@@ -158,32 +158,37 @@ pub fn Baseline::decode(source : String) -> Baseline raise GraftError {
 }
 
 ///|
-fn decision_json(decision : Decision) -> Json {
+fn decision_json(decision : ReviewDecision) -> Json {
   let action = match decision.resolution {
-    KeepLocal => Json::array([Json::string("keep-local")])
-    TakeTemplate => Json::array([Json::string("take-template")])
-    Delete => Json::array([Json::string("delete")])
-    Replace(file) => Json::array([Json::string("replace"), file_json(file)])
+    WholeFile(KeepLocal) => Json::array([Json::string("keep-local")])
+    WholeFile(TakeTemplate) => Json::array([Json::string("take-template")])
+    WholeFile(Delete) => Json::array([Json::string("delete")])
+    WholeFile(Replace(file)) =>
+      Json::array([Json::string("replace"), file_json(file)])
+    JsonFields(fields) =>
+      Json::array([Json::string("json-fields"), json_field_rows(fields)])
   }
   Json::array([Json::string(decision.path), action])
 }
 
 ///|
-fn parse_decision(value : Json) -> Decision raise GraftError {
+fn parse_decision(value : Json) -> ReviewDecision raise GraftError {
   guard value is Array([String(path), action]) else {
     raise InvalidArchive("expected decision [path, action]")
   }
   let resolution = match action {
-    Array([String("keep-local")]) => KeepLocal
-    Array([String("take-template")]) => TakeTemplate
-    Array([String("delete")]) => Delete
-    Array([String("replace"), file]) => Replace(parse_file(file))
+    Array([String("keep-local")]) => WholeFile(KeepLocal)
+    Array([String("take-template")]) => WholeFile(TakeTemplate)
+    Array([String("delete")]) => WholeFile(Delete)
+    Array([String("replace"), file]) => WholeFile(Replace(parse_file(file)))
+    Array([String("json-fields"), Array(rows)]) =>
+      JsonFields(parse_json_field_rows(rows))
     _ =>
       raise InvalidArchive(
-        "unknown resolution; expected keep-local, take-template, delete or replace",
+        "unknown resolution; expected keep-local, take-template, delete, replace or json-fields",
       )
   }
-  Decision::new(path, resolution)
+  { path, resolution, }
 }
 
 ///|
@@ -215,7 +220,13 @@ pub fn Plan::encode(self : Plan) -> String {
     fields.push(Json::array(options))
     Json::array([
       Json::string("moongraft.plan"),
-      Json::string("4"),
+      Json::string(
+        if self.decisions.any(d => d.resolution is JsonFields(_)) {
+          "5"
+        } else {
+          "4"
+        },
+      ),
       Json::array(fields),
     ]).stringify() +
     "\n"
@@ -234,15 +245,15 @@ pub fn Plan::encode(self : Plan) -> String {
 
 ///|
 pub fn Plan::decode(source : String) -> Plan raise GraftError {
-  let (base, current, next, decisions, renames, window_diff, options) = match
-    parse_archive_json(source) {
+  let (base, current, next, decisions, renames, window_diff, options, has_fields
+  ) = match parse_archive_json(source) {
     Array(
       [
         String("moongraft.plan"),
         String("1"),
         Array([base, current, next, Array(decisions)]),
       ]
-    ) => (base, current, next, decisions, [], false, [])
+    ) => (base, current, next, decisions, [], false, [], false)
     Array(
       [
         String("moongraft.plan"),
@@ -254,16 +265,27 @@ pub fn Plan::decode(source : String) -> Plan raise GraftError {
       guard version == "3" || !renames.is_empty() else {
         raise InvalidArchive("version 2 plans require file moves")
       }
-      (base, current, next, decisions, renames, version == "3", [])
+      (base, current, next, decisions, renames, version == "3", [], false)
     }
     Array(
       [
         String("moongraft.plan"),
-        String("4"),
+        String(version),
         Array([base, current, next, Array(decisions), mappings, Array(options)]),
       ]
-    ) if !options.is_empty() && options.length() <= 2 =>
-      (base, current, next, decisions, parse_renames(mappings), true, options)
+    ) if (version == "4" || version == "5") &&
+      !options.is_empty() &&
+      options.length() <= 2 =>
+      (
+        base,
+        current,
+        next,
+        decisions,
+        parse_renames(mappings),
+        true,
+        options,
+        version == "5",
+      )
     _ => raise InvalidArchive("expected a supported moongraft.plan archive")
   }
   guard decisions.length() <= 6144 else {
@@ -289,5 +311,11 @@ pub fn Plan::decode(source : String) -> Plan raise GraftError {
     parameter_migration?=migration,
     json_paths~,
   )
-  plan.resolve(decisions.map(parse_decision))
+  let decoded = decisions.map(parse_decision)
+  guard has_fields == decoded.any(d => d.resolution is JsonFields(_)) else {
+    raise InvalidArchive(
+      "JSON field decisions require a version 5 plan archive",
+    )
+  }
+  plan.resolve_combined(decoded)
 }

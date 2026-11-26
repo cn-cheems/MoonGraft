@@ -253,9 +253,27 @@ moon run cmd/main -- plan-json baseline.json my-project v2 template-v2 json-path
 moon run cmd/main -- review plan.json
 ```
 
-例如，本地修改 `/http/timeout`、模板新增 `/http/retries` 时，两项会一起进入候选。双方修改同一字段会在报告中列出 JSON Pointer。数组按整体比较，字段删除与 `null` 有不同含义。冲突仍通过现有 `resolve` 或 `replace` 按文件审阅，手工替换也必须是有效 JSON。
+例如，本地修改 `/http/timeout`、模板新增 `/http/retries` 时，两项会一起进入候选。双方修改同一字段会在报告中列出 JSON Pointer。数组按整体比较，字段删除与 `null` 有不同含义。
 
 选中的文件必须是严格 UTF-8 JSON，重复键会被拒绝。逐键合成的结果为按键排序的紧凑 JSON。数字保留原文并按原始写法比较，例如 `1` 和 `1.0` 视为不同值。每份输入和输出最多 2 MiB，嵌套深度最多 64，每个文件最多报告 256 处冲突。计划保存路径选择，刷新和归档重放沿用同一规则。程序接口为 `merge_json` 和 `plan_json_upgrade`。 [JSON Pointer 规范](https://www.rfc-editor.org/rfc/rfc6901.html)
+
+### 审阅单个 JSON 字段
+
+```text
+moon run cmd/main -- show-json plan.json config/service.json /http/timeout
+moon run cmd/main -- review-template plan.json review.json
+moon run cmd/main -- apply-review plan.json review.json reviewed.json
+```
+
+在执行 `apply-review` 前，把 `review.json` 的空决策数组替换为以下数组。这里把超时设为数字 25。手填值写成 JSON 文本字符串，例如 `"null"` 表示 JSON 空值。也可使用 `["/http/timeout","keep-local"]` 或 `["/http/timeout","take-template"]`。如果所选一侧缺少字段，该字段从结果删除。
+
+```json
+[
+  ["config/service.json", ["json-fields", [["/http/timeout", "value", "25"]]]]
+]
+```
+
+`show-json` 用字符串展示存在的 JSON 值，用 JSON `null` 标记缺失。部分审阅可以保存，全部冲突字段处理完后才可导出。更新同一指针会替换该字段的上一次决策。刷新会分别核对每个字段的三方值，并列出保留和失效的决定。整文件审阅仍可用 `resolve` 或 `replace` 显式替换该文件上的字段级决策。库接口为 `Plan::resolve_json_fields` 和 `Plan::json_field_conflict`。
 
 ## 模板文件重命名
 
@@ -348,6 +366,7 @@ CI 集成可调用 `report-json plan.json` 或 `Plan::report_json()`。
 普通计划输出 `["moongraft.report","1",模板标识,旧版本,新版本,变更行,未解决路径]`。
 含移动的报告使用版本 `"2"`，最后一项追加 `[[旧路径,新路径], ...]`。
 含结构化 JSON 选择的报告使用版本 `"3"`，在移动映射数组之后附加 `[[文件路径,[冲突指针,...]], ...]`。
+保存字段级决策后报告使用版本 `"4"`，决策列包含已选择的指针。
 每行包含路径、分类和决策（未决策为 null），按路径排序，适合解析归档。
 
 批量审阅：`review-template plan.json review.json` 创建绑定当前计划的空审阅文件。
@@ -386,7 +405,7 @@ CI 集成可调用 `report-json plan.json` 或 `Plan::report_json()`。
 当前不支持模板脚本执行、从任意 URL 自动创建模板仓库、自动重命名识别、Jinja/Cookiecutter 兼容、YAML 语义合并、原地更新、所有权/ACL/其他权限位保留、并发写入或断电持久性保证。目录扫描和导出要求调用者提供可信且独占使用的本地目录。
 
 长文本的完整差分超过预算时，MoonGraft 分别裁剪旧模板与本地版本、旧模板与新版之间相同的前后行，再在每个变更区间内计算差分。变更位置仍以旧模板为基准。每个差分表最多 262,144 个单元，扫描的行数上限保持 4,096。跨度过大的修改仍报告 `conflict:text-merge-limit`，可通过审阅明确选择结果。
-普通新计划使用版本 3，含参数迁移或 JSON 合并选项的计划使用版本 4。版本 1 和 2 归档继续按原差分规则重放，保留已有审阅决策。
+普通新计划使用版本 3，含参数迁移或 JSON 合并选项的计划使用版本 4。保存 JSON 字段决策时使用版本 5。版本 1 和 2 归档继续按原差分规则重放，保留已有审阅决策。
 
 ## 差异化与后续方向
 

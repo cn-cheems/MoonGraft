@@ -37,6 +37,7 @@ let usage : String =
   #|review-template <plan.json> <new-review.json>
   #|apply-review <plan.json> <review.json> <new-plan.json>
   #|show <plan.json> <conflict-path>
+  #|show-json <plan.json> <conflict-path> <json-pointer>
   #|resolve <plan.json> <conflict-path> <keep-local|take-template|delete> <new-plan.json>
   #|replace <plan.json> <conflict-path> <replacement-file> <new-plan.json>
   #|export <resolved-plan.json> <project-dir> <new-bundle-dir>
@@ -361,6 +362,22 @@ async fn run(args : Array[String]) -> Unit {
       @workspace.write_new(output, refreshed.plan.encode())
       println("Retained decisions: " + refreshed.retained.join(", "))
       println("Dropped decisions: " + refreshed.dropped.join(", "))
+      for (path, pointer) in refreshed.retained_json_fields {
+        println(
+          "Retained JSON decision: " +
+          path +
+          " " +
+          Json::string(pointer).stringify(),
+        )
+      }
+      for (path, pointer) in refreshed.dropped_json_fields {
+        println(
+          "Dropped JSON decision: " +
+          path +
+          " " +
+          Json::string(pointer).stringify(),
+        )
+      }
       println(refreshed.plan.report())
     }
     ["protect", input, rules] => {
@@ -409,6 +426,24 @@ async fn run(args : Array[String]) -> Unit {
       let resolved = plan.resolve([@graft.Decision::new(path, resolution)])
       @workspace.write_new(output, resolved.encode())
       println(resolved.report())
+    }
+    ["show-json", input, path, pointer] => {
+      let plan = @graft.Plan::decode(@workspace.read_text(input))
+      let detail = plan.json_field_conflict(path, pointer)
+      fn value(text : String?) -> Json {
+        match text {
+          Some(text) => Json::string(text)
+          None => Json::null()
+        }
+      }
+      println(
+        Json::object({
+          "pointer": Json::string(detail.pointer),
+          "base": value(detail.base),
+          "project": value(detail.project),
+          "template": value(detail.template),
+        }).stringify(),
+      )
     }
     ["replace", input, path, replacement, output] => {
       let plan = @graft.Plan::decode(@workspace.read_text(input))

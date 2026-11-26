@@ -229,9 +229,30 @@ pub fn Plan::resolve(
   self : Plan,
   decisions : Array[Decision],
 ) -> Plan raise GraftError {
+  self.resolve_combined(
+    decisions.map(decision => {
+      path: decision.path,
+      resolution: WholeFile(decision.resolution),
+    }),
+  )
+}
+
+///|
+fn Plan::resolve_combined(
+  self : Plan,
+  decisions : Array[ReviewDecision],
+) -> Plan raise GraftError {
   let seen : Map[String, Bool] = Map([])
   let result = self.decisions.copy()
-  for decision in decisions {
+  for requested in decisions {
+    let decision = match requested.resolution {
+      JsonFields(fields) =>
+        {
+          ..requested,
+          resolution: self.normalize_json_decisions(requested.path, fields),
+        }
+      _ => requested
+    }
     guard !seen.contains(decision.path) else {
       raise InvalidDecision(decision.path, "duplicate decision")
     }
@@ -242,7 +263,7 @@ pub fn Plan::resolve(
         "path is not a conflict in this plan",
       )
     }
-    if decision.resolution is Replace(file) {
+    if decision.resolution is WholeFile(Replace(file)) {
       guard file.path == decision.path else {
         raise InvalidDecision(
           decision.path,
@@ -268,11 +289,21 @@ pub fn Plan::resolve(
   result.sort_by((a, b) => a.path.lexical_compare(b.path))
   let mut replacement_bytes = 0
   for decision in result {
-    if decision.resolution is Replace(file) {
-      replacement_bytes += file.content.length()
-      guard replacement_bytes <= 16777216 else {
-        raise LimitExceeded("replacement decisions exceed 16 MiB")
-      }
+    match decision.resolution {
+      WholeFile(Replace(file)) => replacement_bytes += file.content.length()
+      JsonFields(fields) =>
+        for field in fields {
+          if field.resolution is SetJsonField(value) {
+            replacement_bytes += @utf8.encode(value).length()
+            guard replacement_bytes <= 16777216 else {
+              raise LimitExceeded("replacement decisions exceed 16 MiB")
+            }
+          }
+        }
+      _ => ()
+    }
+    guard replacement_bytes <= 16777216 else {
+      raise LimitExceeded("replacement decisions exceed 16 MiB")
     }
   }
   let plan = { ..self, decisions: result, }
@@ -286,7 +317,14 @@ pub fn Plan::resolve(
 pub fn Plan::unresolved(self : Plan) -> Array[String] {
   self
   .conflicts()
-  .filter(c => !self.decisions.any(d => d.path == c.path))
+  .filter(c => {
+    match self.decision_at(c.path) {
+      None => true
+      Some({ resolution: JsonFields(fields), .. }) =>
+        fields.length() != self.json_conflicts(c.path).length()
+      Some(_) => false
+    }
+  })
   .map(c => c.path)
 }
 
@@ -313,10 +351,29 @@ fn Plan::materialize(self : Plan) -> Tree raise GraftError {
       for decision in self.decisions {
         if decision.path == change.path {
           selected = match decision.resolution {
-            KeepLocal => ours
-            TakeTemplate => remote
-            Replace(file) => Some(file)
-            Delete => None
+            WholeFile(KeepLocal) => ours
+            WholeFile(TakeTemplate) => remote
+            WholeFile(Replace(file)) => Some(file)
+            WholeFile(Delete) => None
+            JsonFields(fields) => {
+              let merged = prepare_json_file(
+                change.path,
+                self.merge_base.get(change.path),
+                ours,
+                remote,
+                self.window_diff,
+                resolutions=Map::from_array(
+                  fields.map(field => (field.pointer, field.resolution)),
+                ),
+              )
+              guard merged.output is Some(file) && merged.conflicts.is_empty() else {
+                raise InvalidDecision(
+                  change.path,
+                  "JSON fields did not produce a complete file",
+                )
+              }
+              Some(file)
+            }
           }
           break
         }

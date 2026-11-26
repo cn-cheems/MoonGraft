@@ -29,6 +29,8 @@
 - Unified upgrade rules combine parameter migrations, file moves, and JSON
   merging in one plan. Batch manifest v3 captures each project's rules and
   policy for verification and retry.
+- Plan-bound JSON field decisions preserve automatic edits and can be refreshed
+  independently by comparing the three reviewed values.
 - Historical template adoption case with a disclosed compatibility recipe,
   whole-output checks, business regression tests and revision-bound CI evidence.
 

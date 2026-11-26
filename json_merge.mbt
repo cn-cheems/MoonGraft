@@ -79,7 +79,8 @@ fn merge_json_member(
   project : Json?,
   template : Json?,
   pointer : String,
-  conflicts : Array[String],
+  conflicts : Array[JsonFieldConflict],
+  resolutions : Map[String, JsonFieldResolution],
 ) -> Json? raise GraftError {
   if json_member_equal(project, template) || json_member_equal(base, template) {
     return project
@@ -100,6 +101,7 @@ fn merge_json_member(
           to.get(key),
           pointer + "/" + segment,
           conflicts,
+          resolutions,
         )
         is Some(value) {
         result[key] = value
@@ -107,10 +109,22 @@ fn merge_json_member(
     }
     return Some(Json::object(result))
   }
+  match resolutions.get(pointer) {
+    Some(KeepLocalField) => return project
+    Some(TakeTemplateField) => return template
+    Some(SetJsonField(value)) =>
+      return Some(parse_merge_json(@utf8.encode(value), "reviewed JSON value"))
+    None => ()
+  }
   guard conflicts.length() < 256 else {
     raise LimitExceeded("JSON merge exceeds 256 conflicts")
   }
-  conflicts.push(pointer)
+  conflicts.push({
+    pointer,
+    base: base.map(value => canonical_merge_json(value).stringify()),
+    project: project.map(value => canonical_merge_json(value).stringify()),
+    template: template.map(value => canonical_merge_json(value).stringify()),
+  })
   None
 }
 
@@ -134,7 +148,8 @@ fn merge_parsed_json(
   base : Json,
   project : Json,
   template : Json,
-) -> Result[Bytes, Array[String]] raise GraftError {
+  resolutions~ : Map[String, JsonFieldResolution] = Map([]),
+) -> Result[Bytes, Array[JsonFieldConflict]] raise GraftError {
   let conflicts = []
   let merged = merge_json_member(
     Some(base),
@@ -142,6 +157,7 @@ fn merge_parsed_json(
     Some(template),
     "",
     conflicts,
+    resolutions,
   )
   if !conflicts.is_empty() {
     return Err(conflicts)
@@ -151,6 +167,10 @@ fn merge_parsed_json(
   )
   guard bytes.length() <= 2097152 else {
     raise LimitExceeded("merged JSON exceeds 2 MiB")
+  }
+  if !resolutions.is_empty() {
+    // A valid replacement can exceed the depth limit at its destination.
+    ignore(parse_merge_json(bytes, "reviewed JSON output"))
   }
   Ok(bytes)
 }
@@ -164,11 +184,15 @@ pub fn merge_json(
   project : Bytes,
   template : Bytes,
 ) -> Result[Bytes, Array[String]] raise GraftError {
-  merge_parsed_json(
-    parse_merge_json(base, "old template"),
-    parse_merge_json(project, "project"),
-    parse_merge_json(template, "new template"),
-  )
+  match
+    merge_parsed_json(
+      parse_merge_json(base, "old template"),
+      parse_merge_json(project, "project"),
+      parse_merge_json(template, "new template"),
+    ) {
+    Ok(bytes) => Ok(bytes)
+    Err(conflicts) => Err(conflicts.map(conflict => conflict.pointer))
+  }
 }
 
 ///|
@@ -197,7 +221,7 @@ priv struct JsonFileMerge {
   path : String
   kind : ChangeKind
   output : File?
-  conflicts : Array[String]
+  conflicts : Array[JsonFieldConflict]
 } derive(Debug, Eq)
 
 ///|
@@ -207,6 +231,7 @@ fn prepare_json_file(
   project : File?,
   template : File?,
   window_diff : Bool,
+  resolutions~ : Map[String, JsonFieldResolution] = Map([]),
 ) -> JsonFileMerge raise GraftError {
   fn parse(file : File?, side : String) -> Json? raise GraftError {
     match file {
@@ -222,7 +247,7 @@ fn prepare_json_file(
     b != p &&
     b != t &&
     p != t {
-    return match merge_parsed_json(bj, pj, tj) {
+    return match merge_parsed_json(bj, pj, tj, resolutions~) {
       Ok(content) => {
         let executable = if p.executable == b.executable {
           t.executable

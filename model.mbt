@@ -230,6 +230,18 @@ pub fn Decision::new(path : String, resolution : Resolution) -> Decision {
 }
 
 ///|
+priv enum ReviewResolution {
+  WholeFile(Resolution)
+  JsonFields(Array[JsonFieldDecision])
+} derive(Debug, Eq)
+
+///|
+priv struct ReviewDecision {
+  path : String
+  resolution : ReviewResolution
+} derive(Debug, Eq)
+
+///|
 pub struct Plan {
   priv baseline : Baseline
   priv current : Tree
@@ -241,7 +253,7 @@ pub struct Plan {
   priv parameter_migration : ParameterMigration?
   priv json_changes : Map[String, JsonFileMerge]
   priv changes : Array[Change]
-  priv decisions : Array[Decision]
+  priv decisions : Array[ReviewDecision]
 } derive(Debug, Eq)
 
 ///|
@@ -262,7 +274,7 @@ pub fn Plan::parameter_migration(self : Plan) -> ParameterMigration? {
 ///|
 pub fn Plan::json_conflicts(self : Plan, path : String) -> Array[String] {
   match self.json_changes.get(path) {
-    Some(change) => change.conflicts.copy()
+    Some(change) => change.conflicts.map(conflict => conflict.pointer)
     None => []
   }
 }
@@ -276,7 +288,13 @@ pub fn Plan::json_merge_paths(self : Plan) -> Array[String] {
 
 ///|
 pub fn Plan::decisions(self : Plan) -> Array[Decision] {
-  self.decisions.copy()
+  let result = []
+  for decision in self.decisions {
+    if decision.resolution is WholeFile(resolution) {
+      result.push(Decision::new(decision.path, resolution))
+    }
+  }
+  result
 }
 
 ///|

@@ -380,7 +380,7 @@ async fn check_json_lifecycle(root : String) -> Unit {
   }
   @fs.write_file(
     repository + "/" + path,
-    "{\"http\":{\"timeout\":20,\"retries\":3}}\n",
+    "{\"http\":{\"timeout\":20,\"retries\":3,\"mode\":\"safe\"}}\n",
   )
   let conflicting = commit(repository, "Revise the upstream timeout")
   let conflict_plan = root + "/json-conflicts.json"
@@ -404,6 +404,41 @@ async fn check_json_lifecycle(root : String) -> Unit {
   guard !@fs.exists(blocked) else {
     fail("Unresolved JSON created an export directory")
   }
+  let values = cli(["show-json", conflict_plan, path, "/http/timeout"])
+  guard values.contains("\"project\":\"30\"") &&
+    values.contains("\"template\":\"20\"") else {
+    fail("Field review did not display both values")
+  }
+  let field_review = root + "/field-review.json"
+  ignore(cli(["review-template", conflict_plan, field_review]))
+  guard @json.parse(@fs.read_file(field_review).text())
+    is Array([tag, version, Array([snapshot, Array([])])]) else {
+    fail("Unexpected review template")
+  }
+  let field_rows = @json.parse(
+    "[[\"service.json\",[\"json-fields\",[[\"/http/timeout\",\"value\",\"25\"]]]]]",
+  )
+  @fs.write_file(
+    field_review,
+    Json::array([tag, version, Json::array([snapshot, field_rows])]).stringify(),
+  )
+  let reviewed = root + "/field-reviewed.json"
+  ignore(cli(["apply-review", conflict_plan, field_review, reviewed]))
+  let field_bundle = root + "/field-candidate"
+  ignore(cli(["export", reviewed, candidate, field_bundle]))
+  guard @fs.read_file(field_bundle + "/project/" + path).binary() ==
+    b"{\"http\":{\"mode\":\"safe\",\"retries\":3,\"timeout\":25}}\n" else {
+    fail("Field review lost an automatically merged setting")
+  }
+  ignore(
+    cli([
+      "accept-git",
+      adopted,
+      reviewed,
+      field_bundle + "/project",
+      root + "/accepted-field.json",
+    ]),
+  )
   let replacement = root + "/resolved-service.json"
   @fs.write_file(replacement, "{\"http\":{\"timeout\":25,\"retries\":3}}\n")
   let resolved = root + "/json-resolved.json"
