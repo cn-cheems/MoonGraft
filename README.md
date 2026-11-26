@@ -200,6 +200,24 @@ moon run cmd/main -- plan-git source-v2.json candidate-v2/project <commit-v3> pl
 策略文件缺失或格式异常会将对应项目标为 `error`，保留该项目的计划。
 所有相对路径仍以 CLI 工作目录为准。
 
+## 在一次升级中组合规则
+
+`plan-git-rules` 接受参数迁移、文件移动和 JSON 路径。第三项选择移动后的路径。参数规则为 `null` 时，沿用原参数。空数组表示没有对应的文件移动或 JSON 选择。
+
+```json
+["moongraft.upgrade-rules","1",[
+  [[["project","service"]],[["tier","standard"]],[]],
+  [["settings.json","service.json"]],
+  ["service.json"]
+]]
+```
+
+```text
+moon run cmd/main -- plan-git-rules source.json my-project <target-sha> rules.json plan.json
+```
+
+批次 v3 每行依次为项目 ID、来源记录、项目目录、完整目标 SHA、上述完整规则数组，以及完整策略数组或 `null`。把规则和项目策略直接写入清单，即可用 `stage-git-batch` 规划多个项目。核验会比较归档规则及项目策略。用批次输出的 `manifest.json` 和 `report.json` 生成重试清单，可继续使用原来的目标 SHA、规则和项目策略。已有 v1、v2 清单继续适用。
+
 ## 重试未完成的项目
 
 运行 `moon run cmd/main -- retry-git-batch output/manifest.json output/report.json retry.json`，

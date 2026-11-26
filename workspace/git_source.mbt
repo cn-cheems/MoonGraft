@@ -406,6 +406,27 @@ pub async fn GitSource::plan_json_upgrade(
 }
 
 ///|
+/// Replay a pinned template transition with all declared upgrade operations.
+pub async fn GitSource::plan_upgrade_with_rules(
+  self : GitSource,
+  current : @graft.Tree,
+  revision : String,
+  rules : @graft.UpgradeRules,
+) -> @graft.Plan {
+  let target = match rules.parameter_migration() {
+    Some(migration) => {
+      self.verify_replay()
+      self.capture_migrated(revision, migration)
+    }
+    None => {
+      self.verify_parameterized_baseline()
+      self.at(revision)
+    }
+  }
+  @graft.plan_upgrade_with_rules(self.baseline, current, target.baseline, rules)
+}
+
+///|
 /// Advance the record after verifying the resolved candidate and both baselines.
 pub async fn GitSource::accept_upgrade(
   self : GitSource,

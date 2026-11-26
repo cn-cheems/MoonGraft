@@ -36,6 +36,9 @@ successive upgrades with a preserved business file. It also exercises parameter
 migration and rollback, then merges independent JSON changes through both CLI
 entry points. A second JSON upgrade checks the conflict pointer, rejects export
 before creating the candidate, and exports a manually resolved replacement.
+The combined batch compares single-project and batch plan archives, isolates a
+moved-file JSON conflict, retries with the same rules and policy, then accepts
+the verified candidate. It also rejects a policy altered after staging.
 The remote pinning fixture uses a second local Git repository as a configured
 remote. It pins an annotated tag, moves it to a different commit, and confirms
 the original JSON plan can be regenerated and adopted offline after Git pruning.

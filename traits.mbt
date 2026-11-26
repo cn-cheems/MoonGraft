@@ -44,6 +44,12 @@ pub extend ParameterMigration with @debug.Debug::{to_repr}
 pub extend ParameterMigration with Eq::{equal, not_equal}
 
 ///|
+pub extend UpgradeRules with @debug.Debug::{to_repr}
+
+///|
+pub extend UpgradeRules with Eq::{equal, not_equal}
+
+///|
 pub extend ChangeKind with @debug.Debug::{to_repr}
 
 ///|

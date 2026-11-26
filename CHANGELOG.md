@@ -26,6 +26,9 @@
   rejection, atomic arrays, and field-level conflict pointers.
 - Exact remote branch and tag pinning from a configured Git remote, with
   retained local commits for offline plan replay after a ref moves.
+- Unified upgrade rules combine parameter migrations, file moves, and JSON
+  merging in one plan. Batch manifest v3 captures each project's rules and
+  policy for verification and retry.
 - Historical template adoption case with a disclosed compatibility recipe,
   whole-output checks, business regression tests and revision-bound CI evidence.
 

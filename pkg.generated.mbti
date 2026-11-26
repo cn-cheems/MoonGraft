@@ -18,6 +18,8 @@ pub fn plan_update(Baseline, Tree, Baseline) -> Plan raise GraftError
 
 pub fn plan_update_with_renames(Baseline, Tree, Baseline, Array[FileRename]) -> Plan raise GraftError
 
+pub fn plan_upgrade_with_rules(Baseline, Tree, Baseline, UpgradeRules) -> Plan raise GraftError
+
 pub fn track(String, String, Tree) -> Baseline raise GraftError
 
 // Errors
@@ -181,6 +183,7 @@ pub fn Plan::review_template(Self) -> String
 pub fn Plan::rollback(Self, Tree) -> Applied raise GraftError
 pub fn Plan::to_repr(Self) -> @debug.Repr
 pub fn Plan::unresolved(Self) -> Array[String]
+pub fn Plan::upgrade_rules(Self) -> UpgradeRules
 pub fn Plan::validate(Self, Tree) -> Unit raise GraftError
 
 pub(all) enum ProjectDrift {
@@ -229,6 +232,16 @@ pub fn Tree::new(Array[File]) -> Self raise GraftError
 pub fn Tree::not_equal(Self, Self) -> Bool
 pub fn Tree::render_parameters(Self, RenderParameters) -> Self raise GraftError
 pub fn Tree::to_repr(Self) -> @debug.Repr
+
+pub struct UpgradeRules {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn UpgradeRules::decode(String) -> Self raise GraftError
+pub fn UpgradeRules::encode(Self) -> String
+pub fn UpgradeRules::equal(Self, Self) -> Bool
+pub fn UpgradeRules::not_equal(Self, Self) -> Bool
+pub fn UpgradeRules::parameter_migration(Self) -> ParameterMigration?
+pub fn UpgradeRules::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

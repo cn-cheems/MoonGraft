@@ -9,7 +9,7 @@ const BatchAcceptanceMarker = "acceptance.json"
 pub async fn accept_git_batch(batch : String, destination : String) -> Json {
   require_outside(destination, batch)
   verify_git_batch(batch)
-  let entries = parse_git_batch(
+  let (_, entries) = parse_git_batch(
     @utf8.decode(read_bytes(batch + "/manifest.json"), ignore_bom=false),
   )
   let filenames = entries.map(entry => {

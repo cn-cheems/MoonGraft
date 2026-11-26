@@ -15,6 +15,7 @@ let usage : String =
   #|plan-git-renames <source.json> <project-dir> <target-commit-sha> <renames.json> <new-plan.json>
   #|plan-git-parameters <source.json> <project-dir> <target-commit-sha> <migration.json> <new-plan.json>
   #|plan-git-json <source.json> <project-dir> <target-commit-sha> <json-paths.json> <new-plan.json>
+  #|plan-git-rules <source.json> <project-dir> <target-commit-sha> <upgrade-rules.json> <new-plan.json>
   #|accept-git <source.json> <resolved-plan.json> <accepted-project-dir> <new-source.json>
   #|stage-git-batch <manifest.json> <new-output-dir>
   #|stage-git-batch-checked <manifest.json> <policy.json> <new-output-dir>
@@ -219,6 +220,19 @@ async fn run(args : Array[String]) -> Unit {
         @workspace.scan(project),
         revision,
         paths,
+      )
+      @workspace.write_new(output, plan.encode())
+      println(plan.report())
+    }
+    ["plan-git-rules", input, project, revision, rules_path, output] => {
+      @workspace.require_outside(output, project)
+      let source = @workspace.GitSource::decode(@workspace.read_text(input))
+      @workspace.require_outside(output, source.repository)
+      let rules = @graft.UpgradeRules::decode(@workspace.read_text(rules_path))
+      let plan = source.plan_upgrade_with_rules(
+        @workspace.scan(project),
+        revision,
+        rules,
       )
       @workspace.write_new(output, plan.encode())
       println(plan.report())

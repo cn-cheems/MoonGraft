@@ -4,6 +4,7 @@ import {
   "moonbitlang/async@0.22.5/fs",
   "moonbitlang/async@0.22.5/shell",
   "moonbitlang/core/env",
+  "moonbitlang/core/json",
 }
 ----
 
@@ -61,6 +62,7 @@ async fn check_parameterized_lifecycle(root : String) -> Unit {
     "[\"moongraft.render\",\"1\",[[\"project\"],[\"@{project}.conf\"]]]",
   )
   @fs.write_file(repository + "/asset.bin", b"\x00\xff@{project}")
+  @fs.write_file(repository + "/settings.json", "{\"timeout\":10}\n")
   let revisions = []
   for version in ["1", "2", "3"] {
     @fs.write_file(
@@ -168,6 +170,15 @@ async fn check_parameterized_lifecycle(root : String) -> Unit {
   @fs.write_file(
     renamed, "name=@{service}\nstatus=stable\nrevision=4\ntier=@{tier}\n",
   )
+  @fs.rename(
+    repository + "/settings.json",
+    repository + "/service.json",
+    replace=false,
+  )
+  @fs.write_file(
+    repository + "/service.json",
+    "{\"timeout\":20,\"retries\":3}\n",
+  )
   let fourth = commit(repository, "Rename project parameter and introduce tier")
   @fs.write_file(
     renamed, "name=@{service}\nstatus=stable\nrevision=5\ntier=@{tier}\n",
@@ -224,6 +235,86 @@ async fn check_parameterized_lifecycle(root : String) -> Unit {
     "name=red\nstatus=local\nrevision=5\ntier=standard\n" else {
     fail("The adopted recipe could not drive another upgrade")
   }
+  check_combined_batch(root, fourth)
+}
+
+///|
+async fn check_combined_batch(root : String, revision : String) -> Unit {
+  let migration = "[[[\"project\",\"service\"]],[[\"tier\",\"standard\"]],[]]"
+  let recipe = "[\"moongraft.upgrade-rules\",\"1\",[" +
+    migration +
+    ",[[\"settings.json\",\"service.json\"]],[\"service.json\"]]]"
+  let rules = root + "/combined-rules.json"
+  @fs.write_file(rules, recipe)
+  let policy = "[\"moongraft.policy\",\"1\",[1,0,4096,[]]]"
+  let parsed_rules = @json.parse(recipe)
+  let parsed_policy = @json.parse(policy)
+  let red = root + "/red-candidate-v3/project"
+  let blue = root + "/blue-candidate-v3/project"
+  fn row(id : String, project : String) -> Json {
+    Json::array([
+      Json::string(id),
+      Json::string(root + "/" + id + "-v3.json"),
+      Json::string(project),
+      Json::string(revision),
+      parsed_rules,
+      parsed_policy,
+    ])
+  }
+  fn manifest(rows : Array[Json]) -> String {
+    Json::array([Json::string("moongraft.git-batch.v3"), Json::array(rows)]).stringify()
+  }
+  @fs.write_file(red + "/settings.json", "{\"timeout\":10,\"port\":8080}\n")
+  @fs.write_file(blue + "/settings.json", "{\"timeout\":30}\n")
+  let input = root + "/combined.json"
+  @fs.write_file(input, manifest([row("red", red), row("blue", blue)]))
+  let batch = root + "/combined"
+  ignore(cli(["stage-git-batch", input, batch]))
+  let direct = root + "/combined-direct.json"
+  ignore(
+    cli(["plan-git-rules", root + "/red-v3.json", red, revision, rules, direct]),
+  )
+  guard @fs.read_file(batch + "/red/plan.json").binary() ==
+    @fs.read_file(direct).binary() &&
+    @fs.read_file(batch + "/red/candidate/project/service.json").binary() ==
+    b"{\"port\":8080,\"retries\":3,\"timeout\":20}\n" &&
+    !@fs.exists(batch + "/red/candidate/project/settings.json") &&
+    @fs.read_file(batch + "/red/candidate/project/red.conf")
+    .text()
+    .contains("tier=standard") &&
+    !@fs.exists(batch + "/blue/candidate") else {
+    fail("Combined batch lost an operation or exported a conflicted project")
+  }
+  let review = cli(["review", batch + "/blue/plan.json"])
+  guard review.contains("json-conflict\tservice.json\t\"/timeout\"") else {
+    fail("Batch did not preserve field conflict at the destination")
+  }
+  let retry = root + "/combined-retry.json"
+  ignore(
+    cli([
+      "retry-git-batch",
+      batch + "/manifest.json",
+      batch + "/report.json",
+      retry,
+    ]),
+  )
+  guard @fs.read_file(retry).text() == manifest([row("blue", blue)]) + "\n" else {
+    fail("Retry changed the fixed revision, rules or policy")
+  }
+  @fs.write_file(blue + "/settings.json", "{\"timeout\":10,\"port\":8081}\n")
+  let retried = root + "/combined-retried"
+  ignore(cli(["stage-git-batch", retry, retried]))
+  ignore(cli(["accept-git-batch", retried, root + "/combined-accepted"]))
+  @fs.write_file(
+    retried + "/blue/policy.json",
+    "[\"moongraft.policy\",\"1\",[2,0,4096,[]]]",
+  )
+  ignore(
+    cli(
+      ["verify-git-batch", retried],
+      error="Project policy differs from the captured manifest",
+    ),
+  )
 }
 
 ///|

@@ -5,27 +5,37 @@ priv struct BatchEntry {
   project : String
   revision : String
   policy_path : String?
+  inline_policy : String?
+  rules : Json?
+  row : Json
 }
 
 ///|
-fn parse_git_batch(manifest : String) -> Array[BatchEntry] raise {
-  guard @json.parse(manifest) is Array([String(version), Array(rows)]) &&
-    (version == "moongraft.git-batch.v1" || version == "moongraft.git-batch.v2") &&
+fn parse_git_batch(manifest : String) -> (String, Array[BatchEntry]) raise {
+  guard @json.parse(
+      manifest,
+      reject_duplicate_keys=true,
+      preserve_number_repr=true,
+    )
+    is Array([String(version), Array(rows)]) &&
+    [
+      "moongraft.git-batch.v1", "moongraft.git-batch.v2", "moongraft.git-batch.v3",
+    ].contains(version) &&
     !rows.is_empty() &&
     rows.length() <= 16 else {
     raise WorkspaceError(
-      "Expected a moongraft.git-batch.v1 or v2 manifest with 1–16 entries",
+      "Expected a MoonGraft batch manifest v1, v2 or v3 with 1–16 entries",
     )
   }
   let ids : Map[String, Bool] = Map([])
   let entries = []
   for row in rows {
-    let (id, source_path, project, revision, policy_path) = match
+    let (id, source_path, project, revision, policy_path, inline_policy, rules) = match
       (version, row) {
       (
         "moongraft.git-batch.v1",
         Array([String(id), String(source), String(project), String(revision)]),
-      ) => (id, source, project, revision, None)
+      ) => (id, source, project, revision, None, None, None)
       (
         "moongraft.git-batch.v2",
         Array(
@@ -43,7 +53,26 @@ fn parse_git_batch(manifest : String) -> Array[BatchEntry] raise {
             "Version 2 requires a policy file for every project",
           )
         }
-        (id, source, project, revision, Some(policy_path))
+        (id, source, project, revision, Some(policy_path), None, None)
+      }
+      (
+        "moongraft.git-batch.v3",
+        Array(
+          [
+            String(id),
+            String(source),
+            String(project),
+            String(revision),
+            rules,
+            policy,
+          ]
+        ),
+      ) => {
+        let policy = match policy {
+          Null => None
+          _ => Some(policy.stringify())
+        }
+        (id, source, project, revision, None, policy, Some(rules))
       }
       _ => raise WorkspaceError("Batch row does not match its manifest version")
     }
@@ -63,10 +92,19 @@ fn parse_git_batch(manifest : String) -> Array[BatchEntry] raise {
     }
     ignore(@graft.File::new(id + "/plan.json", b""))
     ids[id] = true
-    entries.push({ id, source_path, project, revision, policy_path, })
+    entries.push({
+      id,
+      source_path,
+      project,
+      revision,
+      policy_path,
+      inline_policy,
+      rules,
+      row,
+    })
   }
   entries.sort_by((a, b) => a.id.lexical_compare(b.id))
-  entries
+  (version, entries)
 }
 
 ///|
@@ -100,7 +138,15 @@ async fn stage_git_entry(
   policy : String?,
 ) -> Json {
   let current = scan(entry.project)
-  let plan = source.plan_upgrade(current, entry.revision)
+  let plan = match entry.rules {
+    Some(rules) =>
+      source.plan_upgrade_with_rules(
+        current,
+        entry.revision,
+        @graft.UpgradeRules::decode(rules.stringify()),
+      )
+    None => source.plan_upgrade(current, entry.revision)
+  }
   let directory = destination + "/" + entry.id
   @fs.mkdir(directory)
   write_new(directory + "/source.json", source.encode())
@@ -118,8 +164,11 @@ async fn stage_git_entry(
     Some(text) => plan.prepare(latest, text)
     None => plan.apply(latest)
   }
-  if entry.policy_path is Some(path) {
-    let text = @utf8.decode(read_bytes(path), ignore_bom=false)
+  let project_policy = match entry.policy_path {
+    Some(path) => Some(@utf8.decode(read_bytes(path), ignore_bom=false))
+    None => entry.inline_policy
+  }
+  if project_policy is Some(text) {
     write_new(directory + "/policy.json", text)
     ignore(plan.prepare(latest, text))
   }
@@ -136,7 +185,7 @@ pub async fn stage_git_batch(
   destination : String,
   policy? : String,
 ) -> Json {
-  let entries = parse_git_batch(manifest)
+  let (_, entries) = parse_git_batch(manifest)
   // Check output placement before creating anything, including for bad entries
   // whose source records cannot be decoded.
   for entry in entries {

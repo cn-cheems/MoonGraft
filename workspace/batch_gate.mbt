@@ -116,9 +116,8 @@ pub async fn verify_git_batch(destination : String) -> Unit {
     }) else {
     raise WorkspaceError("Batch contains missing or unreported entries")
   }
-  let policy_ids = []
-  if captured {
-    let entries = parse_git_batch(
+  let entries = if captured {
+    let (version, entries) = parse_git_batch(
       @utf8.decode(read_bytes(destination + "/manifest.json"), ignore_bom=false),
     )
     guard entries.length() == projects.length() &&
@@ -127,12 +126,14 @@ pub async fn verify_git_batch(destination : String) -> Unit {
         "Report revision differs from the batch manifest or project set",
       )
     }
-    for entry in entries {
-      if entry.policy_path is Some(_) {
-        policy_ids.push(entry.id)
-      }
+    guard version != "moongraft.git-batch.v3" || has_rules else {
+      raise WorkspaceError("Expected captured batch policy metadata")
     }
+    entries
+  } else {
+    []
   }
+  let by_id = Map::from_array(entries.map(entry => (entry.id, entry)))
   let common_policy = if has_rules {
     let value = @json.parse(
       @utf8.decode(read_bytes(destination + "/policy.json"), ignore_bom=false),
@@ -152,17 +153,29 @@ pub async fn verify_git_batch(destination : String) -> Unit {
       let names = @fs.readdir(directory, include_hidden=true)
       let has_source = names.contains("source.json")
       let has_policy = names.contains("policy.json")
+      let entry = by_id.get(id)
+      let expects_policy = entry is Some(entry) &&
+        (entry.policy_path is Some(_) || entry.inline_policy is Some(_))
       let expected_count = 2 +
         (if has_source { 1 } else { 0 }) +
         (if has_policy { 1 } else { 0 })
       guard (!captured || has_source) &&
-        (!has_rules || !policy_ids.contains(id) || has_policy) &&
+        (!has_rules || !expects_policy || has_policy) &&
         names.length() == expected_count &&
         names.contains("plan.json") &&
         names.contains("candidate") else {
         raise WorkspaceError("Expected a plan and a complete candidate")
       }
       let plan = @graft.Plan::decode(read_text(directory + "/plan.json"))
+      if entry is Some({ rules: Some(rules), inline_policy, .. }) {
+        guard plan.upgrade_rules() ==
+          @graft.UpgradeRules::decode(rules.stringify()) &&
+          has_policy == (inline_policy is Some(_)) else {
+          raise WorkspaceError(
+            "Plan rules or policy presence differ from the captured manifest",
+          )
+        }
+      }
       let next = plan.next_baseline()
       guard next.revision == revision else {
         raise WorkspaceError("Report revision differs from the plan")
@@ -178,15 +191,18 @@ pub async fn verify_git_batch(destination : String) -> Unit {
         ignore(plan.prepare(original.tree, text))
       }
       if has_policy {
-        ignore(
-          plan.prepare(
-            original.tree,
-            @utf8.decode(
-              read_bytes(directory + "/policy.json"),
-              ignore_bom=false,
-            ),
-          ),
+        let policy = @utf8.decode(
+          read_bytes(directory + "/policy.json"),
+          ignore_bom=false,
         )
+        if entry is Some({ inline_policy: Some(expected), .. }) {
+          guard policy == expected else {
+            raise WorkspaceError(
+              "Project policy differs from the captured manifest",
+            )
+          }
+        }
+        ignore(plan.prepare(original.tree, policy))
       }
       if has_source {
         let source = GitSource::decode(read_text(directory + "/source.json"))

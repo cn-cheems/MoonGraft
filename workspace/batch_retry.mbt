@@ -6,7 +6,7 @@ pub fn retry_git_batch_manifest(
   manifest : String,
   report : String,
 ) -> String? raise {
-  let entries = parse_git_batch(manifest)
+  let (version, entries) = parse_git_batch(manifest)
   let statuses = parse_git_batch_report(report)
   guard entries.length() == statuses.length() &&
     entries.all(entry => {
@@ -24,18 +24,7 @@ pub fn retry_git_batch_manifest(
   if selected.is_empty() {
     return None
   }
-  let version = if selected[0].policy_path is Some(_) {
-    "moongraft.git-batch.v2"
-  } else {
-    "moongraft.git-batch.v1"
-  }
-  let rows = selected.map(entry => {
-    let fields = [entry.id, entry.source_path, entry.project, entry.revision]
-    if entry.policy_path is Some(path) {
-      fields.push(path)
-    }
-    Json::array(fields.map(Json::string))
-  })
+  let rows = selected.map(entry => entry.row)
   Some(
     Json::array([Json::string(version), Json::array(rows)]).stringify() + "\n",
   )
